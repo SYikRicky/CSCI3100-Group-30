@@ -40,6 +40,10 @@ gem "thruster", require: false
 # Use Active Storage variants [https://guides.rubyonrails.org/active_storage_overview.html#transforming-images]
 gem "image_processing", "~> 1.2"
 
+gem "devise"
+gem "pundit"
+gem "faraday"
+
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
@@ -52,6 +56,11 @@ group :development, :test do
 
   # Omakase Ruby styling [https://github.com/rails/rubocop-rails-omakase/]
   gem "rubocop-rails-omakase", require: false
+
+  gem "rspec-rails", "~> 7.0"
+  gem "factory_bot_rails"
+  gem "faker"
+  gem "webmock"
 end
 
 group :development do
@@ -63,4 +72,12 @@ group :test do
   # Use system testing [https://guides.rubyonrails.org/testing.html#system-testing]
   gem "capybara"
   gem "selenium-webdriver"
+
+  gem "simplecov", require: false
+  gem "database_cleaner-active_record"
+  gem "shoulda-matchers"
+  gem "cucumber-rails", require: false
+  gem "cucumber", "~> 9.2"
 end
+
+
