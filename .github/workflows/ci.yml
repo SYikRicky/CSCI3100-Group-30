@@ -16,6 +16,7 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
+          ruby-version: '3.4.7' 
           bundler-cache: true
 
       - name: Scan for common Rails security vulnerabilities using static analysis
@@ -34,6 +35,7 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
+          ruby-version: '3.4.7' 
           bundler-cache: true
 
       - name: Scan for security vulnerabilities in JavaScript dependencies
@@ -50,6 +52,7 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
+          ruby-version: '3.4.7' 
           bundler-cache: true
 
       - name: Prepare RuboCop cache
@@ -84,6 +87,7 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
+          ruby-version: '3.4.7'
           bundler-cache: true
 
       - name: Run tests
@@ -91,7 +95,7 @@ jobs:
           RAILS_ENV: test
           # RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
           # REDIS_URL: redis://localhost:6379/0
-        run: bin/rails db:test:prepare test
+        run: bundle exec rspec
 
   system-test:
     runs-on: ubuntu-latest
@@ -112,6 +116,7 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
+          ruby-version: '3.4.7' 
           bundler-cache: true
 
       - name: Run System Tests
@@ -119,7 +124,7 @@ jobs:
           RAILS_ENV: test
           # RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
           # REDIS_URL: redis://localhost:6379/0
-        run: bin/rails db:test:prepare test:system
+        run: bundle exec cucumber
 
       - name: Keep screenshots from failed system tests
         uses: actions/upload-artifact@v4
