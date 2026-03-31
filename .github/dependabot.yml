@@ -4,9 +4,15 @@ updates:
   directory: "/"
   schedule:
     interval: weekly
-  open-pull-requests-limit: 10
+  groups:
+      ruby-gems:
+        patterns:
+          - "*" # Groups all gem updates together
 - package-ecosystem: github-actions
   directory: "/"
   schedule:
     interval: weekly
-  open-pull-requests-limit: 10
+  groups:
+      ruby-gems:
+        patterns:
+          - "*" # Groups all gem updates together
