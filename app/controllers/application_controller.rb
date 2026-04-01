@@ -5,6 +5,11 @@ class ApplicationController < ActionController::Base
   include Pundit::Authorization
   before_action :authenticate_user! # Devise - requirements to log in
 
+  rescue_from Pundit::NotAuthorizedError do
+    flash[:alert] = "Not authorized"
+    redirect_to leagues_path
+  end
+
   # Changes to the importmap will invalidate the etag for HTML responses
   stale_when_importmap_changes
 

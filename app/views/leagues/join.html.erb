@@ -1,2 +1,16 @@
-<h1>Leagues#join</h1>
-<p>Find me in app/views/leagues/join.html.erb</p>
+<h1>Join a League</h1>
+
+<% if flash[:alert] %>
+  <p style="color: red"><%= flash[:alert] %></p>
+<% end %>
+
+<%= form_with url: join_leagues_path, method: :post do |form| %>
+  <div>
+    <%= form.label :invite_code, style: "display: block" %>
+    <%= form.text_field :invite_code %>
+  </div>
+
+  <div>
+    <%= form.submit "Join League" %>
+  </div>
+<% end %>

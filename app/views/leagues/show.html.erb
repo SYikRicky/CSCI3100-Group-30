@@ -1,2 +1,15 @@
-<h1>Leagues#show</h1>
-<p>Find me in app/views/leagues/show.html.erb</p>
+<%= render @league %>
+
+<% if current_user == @league.owner %>
+  <div>
+    <strong>Invite code:</strong> <%= @league.invite_code %>
+  </div>
+
+  <%= button_to "Destroy League", @league, method: :delete,
+        data: { turbo_confirm: "Are you sure? This cannot be undone." } %>
+<% end %>
+
+<div>
+  <%= link_to "Back to leagues", leagues_path %> |
+  <%= link_to "Home", root_path %>
+</div>

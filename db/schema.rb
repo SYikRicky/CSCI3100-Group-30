@@ -10,22 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-<<<<<<< HEAD
-ActiveRecord::Schema[8.1].define(version: 2026_03_31_121302) do
-  create_table "leagues", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.text "description"
-    t.datetime "ends_at"
-    t.string "invite_code"
-    t.string "name"
-    t.integer "owner_id", null: false
-    t.decimal "starting_capital"
-    t.datetime "starts_at"
-    t.string "status"
-    t.datetime "updated_at", null: false
-    t.index ["owner_id"], name: "index_leagues_on_owner_id"
-=======
-ActiveRecord::Schema[8.1].define(version: 2026_03_31_181045) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_01_120000) do
   create_table "league_memberships", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.integer "league_id", null: false
@@ -38,9 +23,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_181045) do
 
   create_table "leagues", force: :cascade do |t|
     t.datetime "created_at", null: false
+    t.text "description"
+    t.datetime "ends_at"
+    t.string "invite_code"
     t.string "name"
-    t.integer "owner_id"
+    t.integer "owner_id", null: false
+    t.decimal "starting_capital"
+    t.datetime "starts_at"
     t.datetime "updated_at", null: false
+    t.index ["owner_id"], name: "index_leagues_on_owner_id"
   end
 
   create_table "portfolios", force: :cascade do |t|
@@ -51,7 +42,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_181045) do
     t.integer "user_id", null: false
     t.index ["league_id"], name: "index_portfolios_on_league_id"
     t.index ["user_id"], name: "index_portfolios_on_user_id"
->>>>>>> origin/main
   end
 
   create_table "users", force: :cascade do |t|
@@ -67,12 +57,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_181045) do
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
   end
 
-<<<<<<< HEAD
-  add_foreign_key "leagues", "owners"
-=======
   add_foreign_key "league_memberships", "leagues"
   add_foreign_key "league_memberships", "users"
+  add_foreign_key "leagues", "users", column: "owner_id"
   add_foreign_key "portfolios", "leagues"
   add_foreign_key "portfolios", "users"
->>>>>>> origin/main
 end

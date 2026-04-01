@@ -1,21 +1,30 @@
 class League < ApplicationRecord
   belongs_to :owner, class_name: "User", foreign_key: "owner_id"
 
-  validates :name,
-    :owner,
-    :starting_capital,
-    :invite_code,
-    :starts_at,
-    :ends_at,
-    presence: true
+  before_validation :generate_invite_code, on: :create
 
+  validates :name, presence: true, length: { maximum: 100 }
+  validates :owner, :invite_code, :starts_at, :ends_at, presence: true
+  validates :invite_code, uniqueness: true
+  validates :starting_capital, numericality: { greater_than: 0 }
   validate :starts_at_before_ends_at
 
+  def status
+    return "upcoming" if Time.current < starts_at
+    return "active"   if Time.current < ends_at
+    "passed"
+  end
+
   private
-    def starts_at_before_ends_at
-      return if self.starts_at < self.ends_at
-      if self.starts_at > self.ends_at
-        errors.add(:starts_at, "The start date must be earlier than end date")
-      end
+
+  def generate_invite_code
+    self.invite_code ||= SecureRandom.alphanumeric(6).upcase
+  end
+
+  def starts_at_before_ends_at
+    return unless starts_at && ends_at
+    if starts_at >= ends_at
+      errors.add(:ends_at, "must be after start date")
     end
+  end
 end

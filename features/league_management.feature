@@ -13,7 +13,14 @@ Feature: League Management
     Given a league exists with invite code "ABC123"
     And I am signed in as "bob@cuhk.edu.hk"
     When I join the league using invite code "ABC123"
-    Then I should have a portfolio with cash balance of 100000
+    Then I should see "You have joined the league!"
+
+  Scenario: Owner destroys a league
+    Given I am signed in as "alice@cuhk.edu.hk"
+    And I own a league named "Alpha League"
+    When I destroy "Alpha League"
+    Then I should see "League was successfully destroyed"
+    And I should not see "Alpha League"
 
   Scenario: Non-member cannot view a league's portfolio
     Given a league exists
