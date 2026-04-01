@@ -4,7 +4,11 @@ class LeaguePolicy < ApplicationPolicy
     end
 
     def show?
-        user.present?
+      record.owner == user || LeagueMembership.exists?(user: user, league: record)
+    end
+
+    def destroy?
+      record.owner == user
     end
 
     class Scope < Scope

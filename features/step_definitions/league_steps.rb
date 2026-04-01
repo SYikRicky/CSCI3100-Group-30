@@ -1,0 +1,58 @@
+Given(/^I am signed in as "(.*)"$/) do |user_email|
+  @user = FactoryBot.create(:user, email: user_email)
+  login_as(@user, scope: :user)
+end
+
+Given(/^I am signed in as a non-member$/) do
+  @user = FactoryBot.create(:user)
+  login_as(@user, scope: :user)
+end
+
+Given(/^I own a league named "(.*)"$/) do |name|
+  @league = FactoryBot.create(:league, name: name, owner: @user)
+end
+
+When(/^I destroy "(.*)"$/) do |name|
+  league = League.find_by(name: name)
+  visit league_path(league)
+  click_button "Destroy League"
+end
+
+Then(/^I should not see "(.*)"$/) do |text|
+  expect(page).not_to have_content(text)
+end
+
+Given(/^a league exists with invite code "(.*)"$/) do |code|
+  @league = FactoryBot.create(:league, invite_code: code)
+end
+
+Given(/^a league exists$/) do
+  @league = FactoryBot.create(:league)
+end
+
+When(/^I create a league with starting capital of (.*)$/) do |capital_amount|
+  visit new_league_path
+  fill_in "Name",             with: "Test League"
+  fill_in "Starting capital", with: capital_amount
+  fill_in "Starts at",        with: "2026-05-01T00:00"
+  fill_in "Ends at",          with: "2026-06-01T00:00"
+  click_button "Create League"
+end
+
+When(/^I join the league using invite code "(.*)"$/) do |code|
+  visit join_leagues_path
+  fill_in "Invite code", with: code
+  click_button "Join League"
+end
+
+When(/^I try to view the league's portfolio$/) do
+  visit league_path(@league)
+end
+
+Then(/^"(.*)" should be shown on the page$/) do |message|
+  expect(page).to have_content(message)
+end
+
+Then(/^I should see "(.*)"$/) do |message|
+  expect(page).to have_content(message)
+end
