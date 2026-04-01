@@ -1,0 +1,8 @@
+<h1>Daily Portfolio Summary</h1>
+
+
+<p>Hello <%= @user.display_name %>,</p>
+
+<p>Your daily summary for <%= @league.name %></p>
+
+<p>Current Cash Balance: $<%= number_with_precision(@portfolio.cash_balance, precision: 2) %></p>

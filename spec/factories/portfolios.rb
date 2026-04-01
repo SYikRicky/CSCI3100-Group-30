@@ -1,7 +1,7 @@
 FactoryBot.define do
   factory :portfolio do
-    user { nil }
-    league { nil }
-    cash_balance { "9.99" }
+    association :user
+    association :league
+    cash_balance { 100000.0 }
   end
 end

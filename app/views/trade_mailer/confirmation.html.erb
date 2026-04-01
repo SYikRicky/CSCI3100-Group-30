@@ -1,0 +1,17 @@
+<h1>Trade Confirmation</h1>
+
+
+<p>Hello <%= @user.display_name %>,</p>
+
+<p>
+  <% if @trade.action == "buy" %>
+    You bought <strong><%= @trade.quantity %></strong> shares of <strong><%= @trade.stock.ticker %></strong> at $<%= number_with_precision(@trade.price_at_trade, precision: 2) %> per share.
+  <% else %>
+    You sold <strong><%= @trade.quantity %></strong> shares of <strong><%= @trade.stock.ticker %></strong> at $<%= number_with_precision(@trade.price_at_trade, precision: 2) %> per share.
+  <% end %>
+</p>
+
+<p>League: <%= @league.name %></p>
+
+<hr>
+<p>Virtual Trading Only</p>
