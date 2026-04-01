@@ -15,7 +15,6 @@ class CreatePriceSnapshots < ActiveRecord::Migration[8.1]
       t.timestamps
     end
 
-    add_index :price_snapshots, [:stock_id, :recorded_at], unique: true
+    add_index :price_snapshots, [ :stock_id, :recorded_at ], unique: true
   end
 end
-

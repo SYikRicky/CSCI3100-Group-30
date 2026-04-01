@@ -37,4 +37,3 @@ class HistoricalDataSeedJob < ApplicationJob
     )
   end
 end
-

@@ -1,6 +1,5 @@
 # Preview all emails at http://localhost:3000/rails/mailers/trade_mailer_mailer
 class TradeMailerPreview < ActionMailer::Preview
-
   # Preview this email at http://localhost:3000/rails/mailers/trade_mailer_mailer/confirmation
   def confirmation
     TradeMailer.confirmation
@@ -10,5 +9,4 @@ class TradeMailerPreview < ActionMailer::Preview
   def daily_summary
     TradeMailer.daily_summary
   end
-
 end

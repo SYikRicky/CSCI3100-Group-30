@@ -79,4 +79,3 @@ RSpec.describe TiingoService, type: :service do
     end
   end
 end
-

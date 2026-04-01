@@ -8,7 +8,7 @@ RSpec.describe LeagueMailer, type: :mailer do
 
     it "renders the headers" do
       expect(mail.subject).to eq("You've been invited to join Private League")
-      expect(mail.to).to eq(["alice@cuhk.edu.hk"])
+      expect(mail.to).to eq([ "alice@cuhk.edu.hk" ])
     end
 
     it "includes the invite code" do

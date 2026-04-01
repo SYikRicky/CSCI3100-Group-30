@@ -1,17 +1,17 @@
 class TiingoService
   class Error < StandardError; end
 
-  BASE_URL = 'https://api.tiingo.com'.freeze
+  BASE_URL = "https://api.tiingo.com".freeze
 
   def initialize
-    @api_key = "cfbe10d9bbdbd0bc7df6765394dd45616db3f591" 
+    @api_key = "cfbe10d9bbdbd0bc7df6765394dd45616db3f591"
   end
 
   def fetch_historical_prices(ticker:, start_date:, end_date:)
     response = connection.get("/tiingo/daily/#{ticker}/prices") do |req|
-      req.params['startDate'] = start_date.to_s
-      req.params['endDate'] = end_date.to_s
-      req.params['token'] = @api_key if @api_key
+      req.params["startDate"] = start_date.to_s
+      req.params["endDate"] = end_date.to_s
+      req.params["token"] = @api_key if @api_key
     end
 
     raise Error, "Tiingo request failed with status #{response.status}" unless response.success?
@@ -37,13 +37,13 @@ class TiingoService
 
   def parse_prices(rows, ticker)
     rows.map do |row|
-      recorded_at = Time.zone.parse(row['date'].to_s)
+      recorded_at = Time.zone.parse(row["date"].to_s)
 
-      open   = to_decimal(row['open'])
-      high   = to_decimal(row['high'])
-      low    = to_decimal(row['low'])
-      close  = to_decimal(row['close'])
-      volume = to_decimal(row['volume'])
+      open   = to_decimal(row["open"])
+      high   = to_decimal(row["high"])
+      low    = to_decimal(row["low"])
+      close  = to_decimal(row["close"])
+      volume = to_decimal(row["volume"])
 
       {
         ticker: ticker,
@@ -52,7 +52,7 @@ class TiingoService
         high: high,
         low: low,
         close: close,
-        price: to_decimal(row['adjClose'] || row['close']),
+        price: to_decimal(row["adjClose"] || row["close"]),
         volume: volume
       }
     end
@@ -64,4 +64,3 @@ class TiingoService
     BigDecimal(value.to_s)
   end
 end
-
