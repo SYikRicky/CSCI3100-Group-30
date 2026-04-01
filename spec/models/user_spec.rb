@@ -1,23 +1,18 @@
 require 'rails_helper'
 
+# Define data structure
 RSpec.describe User, type: :model do
-  describe "validation" do
-    it "is invald without username" do
-      user_without_username = FactoryBot.build(:user, username: nil)
-      expect(user_without_username).not_to be_valid
-      expect(user_without_username.errors[:username]).to be_present
+    describe 'validations' do
+        it { should validate_presence_of(:email) }
+        it { should validate_uniqueness_of(:email).case_insensitive }
+        it { should validate_presence_of(:password) }
     end
 
-    it "is invald without email" do
-      user_without_email = FactoryBot.build(:user, email: nil)
-      expect(user_without_email).not_to be_valid
-      expect(user_without_email.errors[:email]).to be_present
+    # Test key associations - user, league, porfolio
+    describe 'associations' do
+        it { should have_many :portfolios }
+        it { should have_many :league_memberships }
+        it { should have_many(:leagues).through(:league_memberships) }
+        it { should have_many(:owned_leagues).with_foreign_key('owner_id').class_name('League') }
     end
-
-    it "is invald without password" do
-      user_without_email = FactoryBot.build(:user, password: nil)
-      expect(user_without_email).not_to be_valid
-      expect(user_without_email.errors[:email]).to be_present
-    end
-  end
 end

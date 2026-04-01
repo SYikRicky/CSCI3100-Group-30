@@ -10,6 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
+<<<<<<< HEAD
 ActiveRecord::Schema[8.1].define(version: 2026_03_31_121302) do
   create_table "leagues", force: :cascade do |t|
     t.datetime "created_at", null: false
@@ -23,6 +24,34 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_121302) do
     t.string "status"
     t.datetime "updated_at", null: false
     t.index ["owner_id"], name: "index_leagues_on_owner_id"
+=======
+ActiveRecord::Schema[8.1].define(version: 2026_03_31_181045) do
+  create_table "league_memberships", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.integer "league_id", null: false
+    t.integer "role"
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["league_id"], name: "index_league_memberships_on_league_id"
+    t.index ["user_id"], name: "index_league_memberships_on_user_id"
+  end
+
+  create_table "leagues", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "name"
+    t.integer "owner_id"
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "portfolios", force: :cascade do |t|
+    t.decimal "cash_balance"
+    t.datetime "created_at", null: false
+    t.integer "league_id", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["league_id"], name: "index_portfolios_on_league_id"
+    t.index ["user_id"], name: "index_portfolios_on_user_id"
+>>>>>>> origin/main
   end
 
   create_table "users", force: :cascade do |t|
@@ -38,5 +67,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_121302) do
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
   end
 
+<<<<<<< HEAD
   add_foreign_key "leagues", "owners"
+=======
+  add_foreign_key "league_memberships", "leagues"
+  add_foreign_key "league_memberships", "users"
+  add_foreign_key "portfolios", "leagues"
+  add_foreign_key "portfolios", "users"
+>>>>>>> origin/main
 end
