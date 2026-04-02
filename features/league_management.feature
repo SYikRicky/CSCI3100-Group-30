@@ -27,3 +27,15 @@ Feature: League Management
     And I am signed in as a non-member
     When I try to view the league's portfolio
     Then I should see "Not authorized"
+
+  Scenario: Commissioner invites a valid user when creating a league
+    Given I am signed in as "alice@cuhk.edu.hk"
+    And a user exists with email "charlie@cuhk.edu.hk"
+    When I create a league and invite "charlie@cuhk.edu.hk"
+    Then "League was successfully created" should be shown on the page
+    And "charlie@cuhk.edu.hk" should be a member of the league
+
+  Scenario: Commissioner sees error when inviting a non-existent user
+    Given I am signed in as "alice@cuhk.edu.hk"
+    When I create a league and invite "ghost@cuhk.edu.hk"
+    Then I should see "Invitee identifier not found"

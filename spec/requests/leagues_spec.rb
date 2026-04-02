@@ -133,6 +133,40 @@ RSpec.describe "/leagues", type: :request do
     end
   end
 
+  describe "POST /leagues with invitee_identifier" do
+    let(:invitee) { FactoryBot.create(:user) }
+
+    context "when invitee exists (by email)" do
+      it "creates a membership and portfolio for the invitee" do
+        expect {
+          post leagues_url, params: { league: valid_attributes.merge(invitee_identifier: invitee.email) }
+        }.to change(LeagueMembership, :count).by(1)
+        expect(Portfolio.exists?(user: invitee, league: League.last)).to be true
+      end
+    end
+
+    context "when invitee exists (by display name)" do
+      it "creates a membership for the invitee" do
+        expect {
+          post leagues_url, params: { league: valid_attributes.merge(invitee_identifier: invitee.display_name) }
+        }.to change(LeagueMembership, :count).by(1)
+      end
+    end
+
+    context "when invitee_identifier does not match any user" do
+      it "does not create a league" do
+        expect {
+          post leagues_url, params: { league: valid_attributes.merge(invitee_identifier: "ghost@nowhere.com") }
+        }.not_to change(League, :count)
+      end
+
+      it "renders the form again with 422 status" do
+        post leagues_url, params: { league: valid_attributes.merge(invitee_identifier: "ghost@nowhere.com") }
+        expect(response).to have_http_status(:unprocessable_content)
+      end
+    end
+  end
+
   describe "authentication" do
     before { sign_out user }
 

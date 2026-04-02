@@ -1,6 +1,8 @@
 class League < ApplicationRecord
   belongs_to :owner, class_name: "User", foreign_key: "owner_id"
 
+  attr_accessor :invitee_identifier
+
   before_validation :generate_invite_code, on: :create
 
   validates :name, presence: true, length: { maximum: 100 }
