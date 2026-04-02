@@ -133,36 +133,118 @@ RSpec.describe "/leagues", type: :request do
     end
   end
 
-  describe "POST /leagues with invitee_identifier" do
-    let(:invitee) { FactoryBot.create(:user) }
+  describe "POST /leagues with invitee_identifiers" do
+    let(:invitee)  { FactoryBot.create(:user) }
+    let(:invitee2) { FactoryBot.create(:user) }
 
-    context "when invitee exists (by email)" do
+    context "with a single valid email" do
       it "creates a membership and portfolio for the invitee" do
         expect {
-          post leagues_url, params: { league: valid_attributes.merge(invitee_identifier: invitee.email) }
+          post leagues_url, params: { league: valid_attributes.merge(invitee_identifiers: [ invitee.email ]) }
         }.to change(LeagueMembership, :count).by(1)
         expect(Portfolio.exists?(user: invitee, league: League.last)).to be true
       end
+
+      it "creates an invitation notification for the invitee" do
+        expect {
+          post leagues_url, params: { league: valid_attributes.merge(invitee_identifiers: [ invitee.email ]) }
+        }.to change { invitee.notifications.count }.by(1)
+        notification = invitee.notifications.last
+        expect(notification.kind).to eq("invitation")
+        expect(notification.title).to include("invited")
+      end
     end
 
-    context "when invitee exists (by display name)" do
+    context "with a valid display name" do
       it "creates a membership for the invitee" do
         expect {
-          post leagues_url, params: { league: valid_attributes.merge(invitee_identifier: invitee.display_name) }
+          post leagues_url, params: { league: valid_attributes.merge(invitee_identifiers: [ invitee.display_name ]) }
         }.to change(LeagueMembership, :count).by(1)
       end
     end
 
-    context "when invitee_identifier does not match any user" do
+    context "with multiple valid identifiers" do
+      it "creates a membership for each invitee" do
+        expect {
+          post leagues_url, params: { league: valid_attributes.merge(invitee_identifiers: [ invitee.email, invitee2.email ]) }
+        }.to change(LeagueMembership, :count).by(2)
+      end
+
+      it "creates a notification for each invitee" do
+        post leagues_url, params: { league: valid_attributes.merge(invitee_identifiers: [ invitee.email, invitee2.email ]) }
+        expect(invitee.notifications.count).to eq(1)
+        expect(invitee2.notifications.count).to eq(1)
+      end
+    end
+
+    context "when an identifier does not match any user" do
       it "does not create a league" do
         expect {
-          post leagues_url, params: { league: valid_attributes.merge(invitee_identifier: "ghost@nowhere.com") }
+          post leagues_url, params: { league: valid_attributes.merge(invitee_identifiers: [ "ghost@nowhere.com" ]) }
         }.not_to change(League, :count)
       end
 
       it "renders the form again with 422 status" do
-        post leagues_url, params: { league: valid_attributes.merge(invitee_identifier: "ghost@nowhere.com") }
+        post leagues_url, params: { league: valid_attributes.merge(invitee_identifiers: [ "ghost@nowhere.com" ]) }
         expect(response).to have_http_status(:unprocessable_content)
+      end
+    end
+  end
+
+  describe "POST /leagues/:id/invite" do
+    let(:invitee) { FactoryBot.create(:user) }
+
+    context "as the owner with a valid identifier" do
+      it "creates a membership for the invitee" do
+        expect {
+          post invite_league_url(league), params: { identifier: invitee.email }
+        }.to change(LeagueMembership, :count).by(1)
+        expect(LeagueMembership.exists?(user: invitee, league: league)).to be true
+      end
+
+      it "creates a portfolio for the invitee" do
+        post invite_league_url(league), params: { identifier: invitee.email }
+        expect(Portfolio.exists?(user: invitee, league: league)).to be true
+      end
+
+      it "creates an invitation notification for the invitee" do
+        expect {
+          post invite_league_url(league), params: { identifier: invitee.email }
+        }.to change { invitee.notifications.count }.by(1)
+      end
+
+      it "redirects back to the league with a notice" do
+        post invite_league_url(league), params: { identifier: invitee.email }
+        expect(response).to redirect_to(league_url(league))
+      end
+    end
+
+    context "as the owner with an unknown identifier" do
+      it "does not create a membership" do
+        expect {
+          post invite_league_url(league), params: { identifier: "ghost@nowhere.com" }
+        }.not_to change(LeagueMembership, :count)
+      end
+
+      it "redirects with an alert" do
+        post invite_league_url(league), params: { identifier: "ghost@nowhere.com" }
+        expect(response).to redirect_to(league_url(league))
+        follow_redirect!
+        expect(response.body).to include("not found")
+      end
+    end
+
+    context "as a non-owner" do
+      let(:member) { FactoryBot.create(:user) }
+
+      before do
+        FactoryBot.create(:league_membership, user: member, league: league)
+        sign_in member
+      end
+
+      it "is not authorized" do
+        post invite_league_url(league), params: { identifier: invitee.email }
+        expect(response).to redirect_to(leagues_path)
       end
     end
   end

@@ -4,6 +4,7 @@ class ApplicationController < ActionController::Base
 
   include Pundit::Authorization
   before_action :authenticate_user! # Devise - requirements to log in
+  before_action :load_notifications
 
   rescue_from Pundit::NotAuthorizedError do
     flash[:alert] = "Not authorized"
@@ -20,5 +21,10 @@ class ApplicationController < ActionController::Base
 
   def configure_permitted_parameters
     devise_parameter_sanitizer.permit(:sign_up, keys: [ :display_name ])
+  end
+
+  def load_notifications
+    return unless user_signed_in?
+    @notifications = current_user.notifications.recent
   end
 end

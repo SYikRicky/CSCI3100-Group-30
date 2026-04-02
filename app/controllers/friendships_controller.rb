@@ -17,6 +17,12 @@ class FriendshipsController < ApplicationController
     friendship = Friendship.new(user: current_user, friend: friend)
 
     if friendship.save
+      Notification.create!(
+        user:  friend,
+        kind:  :system,
+        title: "New friend request",
+        body:  "#{current_user.display_name} has sent you a friend request."
+      )
       redirect_to friendships_url, notice: "Friend request sent to #{friend.display_name}."
     else
       redirect_to friendships_url, alert: friendship.errors.full_messages.to_sentence
@@ -26,6 +32,12 @@ class FriendshipsController < ApplicationController
   def update
     friendship = current_user.received_friendships.find(params[:id])
     friendship.accepted!
+    Notification.create!(
+      user:  friendship.user,
+      kind:  :system,
+      title: "Friend request accepted",
+      body:  "#{current_user.display_name} has accepted your friend request."
+    )
     redirect_to friendships_url, notice: "Friend request accepted."
   end
 

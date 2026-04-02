@@ -35,7 +35,16 @@ Feature: League Management
     Then "League was successfully created" should be shown on the page
     And "charlie@cuhk.edu.hk" should be a member of the league
 
+  Scenario: Commissioner invites multiple users when creating a league
+    Given I am signed in as "alice@cuhk.edu.hk"
+    And a user exists with email "charlie@cuhk.edu.hk"
+    And a user exists with email "dave@cuhk.edu.hk"
+    When I create a league and invite "charlie@cuhk.edu.hk" and "dave@cuhk.edu.hk"
+    Then "League was successfully created" should be shown on the page
+    And "charlie@cuhk.edu.hk" should be a member of the league
+    And "dave@cuhk.edu.hk" should be a member of the league
+
   Scenario: Commissioner sees error when inviting a non-existent user
     Given I am signed in as "alice@cuhk.edu.hk"
     When I create a league and invite "ghost@cuhk.edu.hk"
-    Then I should see "Invitee identifier not found"
+    Then I should see "not found"

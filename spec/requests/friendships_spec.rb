@@ -43,6 +43,14 @@ RSpec.describe "/friendships", type: :request do
         follow_redirect!
         expect(response.body).to include("Friend request sent")
       end
+
+      it "creates a notification for the recipient" do
+        expect {
+          post friendships_url, params: { identifier: bob.email }
+        }.to change { bob.notifications.count }.by(1)
+        notification = bob.notifications.last
+        expect(notification.title.downcase).to include("friend request")
+      end
     end
 
     context "with a valid display name" do
@@ -82,6 +90,14 @@ RSpec.describe "/friendships", type: :request do
       expect(response).to redirect_to(friendships_url)
       follow_redirect!
       expect(response.body).to include("Friend request accepted")
+    end
+
+    it "creates a notification for the original sender (bob)" do
+      expect {
+        patch friendship_url(friendship)
+      }.to change { bob.notifications.count }.by(1)
+      notification = bob.notifications.last
+      expect(notification.title.downcase).to include("accepted")
     end
   end
 

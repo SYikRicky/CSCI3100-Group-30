@@ -2,6 +2,9 @@ Rails.application.routes.draw do
   devise_for :users
 
   resources :leagues, only: [ :index, :show, :new, :create, :destroy ] do
+    member do
+      post :invite
+    end
     collection do
       get  :join
       post :join
