@@ -63,8 +63,7 @@ When(/^I create a league and invite "([^"]+)"$/) do |identifier|
   fill_in "Starting capital", with: "100000"
   fill_in "Starts at",        with: "2026-05-01T00:00"
   fill_in "Ends at",          with: "2026-06-01T00:00"
-  fill_in "Email or display name", with: identifier
-  click_button "Add"
+  find("#league_invitee_identifiers_raw", visible: :all).set(identifier)
   click_button "Create League"
 end
 
@@ -74,10 +73,7 @@ When(/^I create a league and invite "([^"]+)" and "([^"]+)"$/) do |id1, id2|
   fill_in "Starting capital", with: "100000"
   fill_in "Starts at",        with: "2026-05-01T00:00"
   fill_in "Ends at",          with: "2026-06-01T00:00"
-  fill_in "Email or display name", with: id1
-  click_button "Add"
-  fill_in "Email or display name", with: id2
-  click_button "Add"
+  find("#league_invitee_identifiers_raw", visible: :all).set("#{id1},#{id2}")
   click_button "Create League"
 end
 

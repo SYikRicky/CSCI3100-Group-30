@@ -33,16 +33,19 @@ class LeaguesController < ApplicationController
     @league = League.new(league_params)
     @league.owner = current_user
 
-    invitee = resolve_invitee(@league.invitee_identifier)
+    raw_ids = params.dig(:league, :invitee_identifiers_raw).to_s
+                    .split(",").map(&:strip).reject(&:blank?)
+    invitees = raw_ids.map { |id| resolve_invitee(id) }
+    unknown  = raw_ids.each_with_index.filter_map { |id, i| id if invitees[i].nil? }
 
-    if @league.invitee_identifier.present? && invitee.nil?
-      @league.errors.add(:invitee_identifier, "not found")
+    if unknown.any?
+      @league.errors.add(:base, "Invitee identifier not found: #{unknown.join(', ')}")
       @friends = current_user.friends
       render :new, status: :unprocessable_content and return
     end
 
     if @league.save
-      invite_to_league(invitee) if invitee && invitee != current_user
+      invitees.each { |invitee| invite_to_league(invitee) if invitee != current_user }
       redirect_to @league, notice: "League was successfully created."
     else
       @friends = current_user.friends
@@ -84,7 +87,7 @@ class LeaguesController < ApplicationController
   end
 
   def league_params
-    params.expect(league: [ :name, :description, :starting_capital, :starts_at, :ends_at, :invitee_identifier ])
+    params.expect(league: [ :name, :description, :starting_capital, :starts_at, :ends_at ])
   end
 
   def resolve_invitee(identifier)

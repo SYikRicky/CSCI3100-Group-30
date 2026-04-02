@@ -140,14 +140,14 @@ RSpec.describe "/leagues", type: :request do
     context "with a single valid email" do
       it "creates a membership and portfolio for the invitee" do
         expect {
-          post leagues_url, params: { league: valid_attributes.merge(invitee_identifiers: [ invitee.email ]) }
+          post leagues_url, params: { league: valid_attributes.merge(invitee_identifiers_raw: invitee.email) }
         }.to change(LeagueMembership, :count).by(1)
         expect(Portfolio.exists?(user: invitee, league: League.last)).to be true
       end
 
       it "creates an invitation notification for the invitee" do
         expect {
-          post leagues_url, params: { league: valid_attributes.merge(invitee_identifiers: [ invitee.email ]) }
+          post leagues_url, params: { league: valid_attributes.merge(invitee_identifiers_raw: invitee.email) }
         }.to change { invitee.notifications.count }.by(1)
         notification = invitee.notifications.last
         expect(notification.kind).to eq("invitation")
@@ -158,7 +158,7 @@ RSpec.describe "/leagues", type: :request do
     context "with a valid display name" do
       it "creates a membership for the invitee" do
         expect {
-          post leagues_url, params: { league: valid_attributes.merge(invitee_identifiers: [ invitee.display_name ]) }
+          post leagues_url, params: { league: valid_attributes.merge(invitee_identifiers_raw: invitee.display_name) }
         }.to change(LeagueMembership, :count).by(1)
       end
     end
@@ -166,12 +166,12 @@ RSpec.describe "/leagues", type: :request do
     context "with multiple valid identifiers" do
       it "creates a membership for each invitee" do
         expect {
-          post leagues_url, params: { league: valid_attributes.merge(invitee_identifiers: [ invitee.email, invitee2.email ]) }
+          post leagues_url, params: { league: valid_attributes.merge(invitee_identifiers_raw: "#{invitee.email},#{invitee2.email}") }
         }.to change(LeagueMembership, :count).by(2)
       end
 
       it "creates a notification for each invitee" do
-        post leagues_url, params: { league: valid_attributes.merge(invitee_identifiers: [ invitee.email, invitee2.email ]) }
+        post leagues_url, params: { league: valid_attributes.merge(invitee_identifiers_raw: "#{invitee.email},#{invitee2.email}") }
         expect(invitee.notifications.count).to eq(1)
         expect(invitee2.notifications.count).to eq(1)
       end
@@ -180,12 +180,12 @@ RSpec.describe "/leagues", type: :request do
     context "when an identifier does not match any user" do
       it "does not create a league" do
         expect {
-          post leagues_url, params: { league: valid_attributes.merge(invitee_identifiers: [ "ghost@nowhere.com" ]) }
+          post leagues_url, params: { league: valid_attributes.merge(invitee_identifiers_raw: "ghost@nowhere.com") }
         }.not_to change(League, :count)
       end
 
       it "renders the form again with 422 status" do
-        post leagues_url, params: { league: valid_attributes.merge(invitee_identifiers: [ "ghost@nowhere.com" ]) }
+        post leagues_url, params: { league: valid_attributes.merge(invitee_identifiers_raw: "ghost@nowhere.com") }
         expect(response).to have_http_status(:unprocessable_content)
       end
     end
