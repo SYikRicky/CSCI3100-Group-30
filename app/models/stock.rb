@@ -4,4 +4,3 @@ class Stock < ApplicationRecord
   validates :ticker, presence: true, uniqueness: true
   validates :company_name, presence: true
 end
-

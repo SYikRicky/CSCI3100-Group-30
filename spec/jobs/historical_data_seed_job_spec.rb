@@ -51,4 +51,3 @@ RSpec.describe HistoricalDataSeedJob, type: :job do
     expect(stock.last_synced_at).to be_present
   end
 end
-

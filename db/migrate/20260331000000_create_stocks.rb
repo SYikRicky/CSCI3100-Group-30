@@ -12,4 +12,3 @@ class CreateStocks < ActiveRecord::Migration[8.1]
     add_index :stocks, :ticker, unique: true
   end
 end
-

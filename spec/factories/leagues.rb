@@ -1,11 +1,13 @@
 FactoryBot.define do
   factory :league do
-    name { Faker::App.name }
-    description { Faker::Lorem.sentence }
+    name { "CUHK Mock Fund League" }
+    starting_capital { 100000 }
+    invite_code { "JOIN123" }
+
+    starts_at { Time.current - 1.day }
+    ends_at { Time.current + 7.days }
+
+    # Dont change this below line
     association :owner, factory: :user
-    starting_capital { 100_000 }
-    starts_at { Time.current }
-    ends_at { 1.weeks.from_now }
-    invite_code { SecureRandom.alphanumeric(6).upcase }
   end
 end

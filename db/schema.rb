@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_01_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_01_172443) do
   create_table "league_memberships", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.integer "league_id", null: false
@@ -69,6 +69,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_01_120000) do
     t.index ["ticker"], name: "index_stocks_on_ticker", unique: true
   end
 
+  create_table "trades", force: :cascade do |t|
+    t.string "action"
+    t.datetime "created_at", null: false
+    t.datetime "executed_at"
+    t.integer "portfolio_id", null: false
+    t.decimal "price_at_trade"
+    t.decimal "quantity"
+    t.integer "stock_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["portfolio_id"], name: "index_trades_on_portfolio_id"
+    t.index ["stock_id"], name: "index_trades_on_stock_id"
+  end
+
   create_table "users", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "display_name"
@@ -88,4 +101,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_01_120000) do
   add_foreign_key "portfolios", "leagues"
   add_foreign_key "portfolios", "users"
   add_foreign_key "price_snapshots", "stocks"
+  add_foreign_key "trades", "portfolios"
+  add_foreign_key "trades", "stocks"
 end

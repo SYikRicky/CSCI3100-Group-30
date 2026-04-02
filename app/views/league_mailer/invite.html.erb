@@ -1,0 +1,15 @@
+<h1>You've been invited</h1>
+
+<p>Hello <%= @user.display_name %>,</p>
+
+<p>
+  you have been invited to join the league: 
+  <strong><%= @league.name %></strong>.
+</p>
+
+<p>use the following invite code to join:</p>
+<h2 style="background: #f4f4f4; padding: 10px; display: inline-block;">
+  <%= @league.invite_code %>
+</h2>
+
+<
