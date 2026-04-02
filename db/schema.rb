@@ -10,7 +10,18 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_01_172443) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_02_120000) do
+  create_table "friendships", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.integer "friend_id", null: false
+    t.integer "status", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["friend_id"], name: "index_friendships_on_friend_id"
+    t.index ["user_id", "friend_id"], name: "index_friendships_on_user_id_and_friend_id", unique: true
+    t.index ["user_id"], name: "index_friendships_on_user_id"
+  end
+
   create_table "league_memberships", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.integer "league_id", null: false
@@ -32,6 +43,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_01_172443) do
     t.datetime "starts_at"
     t.datetime "updated_at", null: false
     t.index ["owner_id"], name: "index_leagues_on_owner_id"
+  end
+
+  create_table "notifications", force: :cascade do |t|
+    t.text "body", null: false
+    t.datetime "created_at", null: false
+    t.integer "kind", default: 0, null: false
+    t.datetime "read_at"
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["user_id", "created_at"], name: "index_notifications_on_user_id_and_created_at"
+    t.index ["user_id"], name: "index_notifications_on_user_id"
   end
 
   create_table "portfolios", force: :cascade do |t|
@@ -95,9 +118,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_01_172443) do
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
   end
 
+  add_foreign_key "friendships", "users"
+  add_foreign_key "friendships", "users", column: "friend_id"
   add_foreign_key "league_memberships", "leagues"
   add_foreign_key "league_memberships", "users"
   add_foreign_key "leagues", "users", column: "owner_id"
+  add_foreign_key "notifications", "users"
   add_foreign_key "portfolios", "leagues"
   add_foreign_key "portfolios", "users"
   add_foreign_key "price_snapshots", "stocks"

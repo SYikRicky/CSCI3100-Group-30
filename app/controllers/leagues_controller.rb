@@ -1,6 +1,6 @@
 class LeaguesController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_league, only: [ :show, :destroy ]
+  before_action :set_league, only: [ :show, :destroy, :invite ]
 
   def index
     @leagues = League.all
@@ -8,19 +8,44 @@ class LeaguesController < ApplicationController
 
   def show
     authorize @league
+    @members = @league.league_memberships.includes(:user)
+  end
+
+  def invite
+    authorize @league
+    invitee = resolve_invitee(params[:identifier])
+    if invitee.nil?
+      redirect_to @league, alert: "User not found." and return
+    end
+    if LeagueMembership.exists?(user: invitee, league: @league)
+      redirect_to @league, alert: "#{invitee.display_name} is already a member." and return
+    end
+    invite_to_league(invitee)
+    redirect_to @league, notice: "#{invitee.display_name} was invited to the league."
   end
 
   def new
-    @league = League.new
+    @league  = League.new
+    @friends = current_user.friends
   end
 
   def create
     @league = League.new(league_params)
     @league.owner = current_user
 
+    invitee = resolve_invitee(@league.invitee_identifier)
+
+    if @league.invitee_identifier.present? && invitee.nil?
+      @league.errors.add(:invitee_identifier, "not found")
+      @friends = current_user.friends
+      render :new, status: :unprocessable_content and return
+    end
+
     if @league.save
+      invite_to_league(invitee) if invitee && invitee != current_user
       redirect_to @league, notice: "League was successfully created."
     else
+      @friends = current_user.friends
       render :new, status: :unprocessable_content
     end
   end
@@ -59,6 +84,22 @@ class LeaguesController < ApplicationController
   end
 
   def league_params
-    params.expect(league: [ :name, :description, :starting_capital, :starts_at, :ends_at ])
+    params.expect(league: [ :name, :description, :starting_capital, :starts_at, :ends_at, :invitee_identifier ])
+  end
+
+  def resolve_invitee(identifier)
+    return nil if identifier.blank?
+    User.find_by(email: identifier) || User.find_by(display_name: identifier)
+  end
+
+  def invite_to_league(invitee)
+    LeagueMembership.create!(user: invitee, league: @league, role: :participant)
+    Portfolio.create!(user: invitee, league: @league, cash_balance: @league.starting_capital)
+    Notification.create!(
+      user:  invitee,
+      kind:  :invitation,
+      title: "You've been invited to #{@league.name}",
+      body:  "#{current_user.display_name} has invited you to join the league \"#{@league.name}\"."
+    )
   end
 end

@@ -11,6 +11,10 @@ class LeaguePolicy < ApplicationPolicy
       record.owner == user
     end
 
+    def invite?
+      record.owner == user
+    end
+
     class Scope < Scope
         def resolve
         scope.all
