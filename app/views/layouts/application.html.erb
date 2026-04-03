@@ -6,13 +6,17 @@
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
 
-    <%# 這裡載入編譯後的 CSS %>
     <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
     <%= stylesheet_link_tag "tailwind", "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
+
+    <%# font style CSS %>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Saira+Stencil+One&display=swap" rel="stylesheet">
   </head>
 
-  <body class="tw-bg-gradient-to-b tw-from-blue-600 tw-to-black tw-min-h-screen">
+  <body class="tw-bg-gradient-to-br tw-from-indigo-950 tw-via-slate-950 tw-to-black tw-min-h-screen">
 
     
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
@@ -38,8 +42,8 @@
       </div>
       </nav> 
     
-    <main class="container py-5">
-      <%= yield %> 
+    <body class="tw-bg-black"> <main>
+      <%= yield %>
     </main>
 
   </body>
