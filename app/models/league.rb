@@ -3,7 +3,7 @@ class League < ApplicationRecord
   has_many :league_memberships, dependent: :destroy
   has_many :members, through: :league_memberships, source: :user
 
-  attr_accessor :invitee_identifier
+  attr_accessor :invitee_identifiers
 
   before_validation :generate_invite_code, on: :create
 

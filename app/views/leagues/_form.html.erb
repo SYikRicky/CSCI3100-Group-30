@@ -35,19 +35,48 @@
     <%= form.datetime_local_field :ends_at %>
   </div>
 
-  <%# ── Invite field ── %>
+  <%# ── Multi-invitee tags field ── %>
   <div>
-    <%= form.label :invitee_identifier, "Invitee (optional — email or username)", style: "display: block" %>
+    <label style="display: block; margin-bottom: 0.3rem">
+      Invitees <span style="color: #6b7280; font-weight: normal">(optional)</span>
+    </label>
+
+    <%# Chip display area %>
+    <div data-invite-popup-target="tags"
+         style="display: flex; flex-wrap: wrap; gap: 0.4rem; min-height: 2.2rem;
+                border: 1px solid #d1d5db; border-radius: 6px; padding: 0.35rem;
+                background: #f9fafb; margin-bottom: 0.4rem">
+    </div>
+
+    <%# Single CSV hidden field — Stimulus keeps it in sync; Capybara can set it directly %>
+    <input type="hidden"
+           id="league_invitee_identifiers_raw"
+           name="league[invitee_identifiers_raw]"
+           data-invite-popup-target="rawField" />
+
+    <%# Input row %>
     <div style="display: flex; gap: 0.5rem; align-items: center">
-      <%= form.text_field :invitee_identifier,
-            placeholder: "Email or display name",
-            data: { "invite-popup-target": "input" } %>
-      <button type="button" data-action="invite-popup#open">Browse Friends</button>
+      <input type="text"
+             data-invite-popup-target="input"
+             placeholder="Email or display name"
+             style="flex: 1; padding: 0.4rem 0.5rem; border: 1px solid #d1d5db;
+                    border-radius: 4px; font-size: 0.9rem" />
+      <button type="button"
+              data-action="invite-popup#addTag"
+              style="padding: 0.4rem 0.75rem; background: #4f46e5; color: white;
+                     border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem">
+        Add
+      </button>
+      <button type="button"
+              data-action="invite-popup#open"
+              style="padding: 0.4rem 0.75rem; background: #e5e7eb; color: #374151;
+                     border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem">
+        Browse Friends
+      </button>
     </div>
   </div>
 
   <%# ── Friend-picker popup ── %>
-  <%# Initial display:none — Stimulus sets display:flex on open, display:none on close %>
   <div data-invite-popup-target="popup"
        data-action="click->invite-popup#backdropClose"
        style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4);
@@ -56,19 +85,12 @@
                 width: 360px; max-height: 70vh; overflow-y: auto">
 
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem">
-        <h3 style="margin: 0">Invite a Friend</h3>
+        <h3 style="margin: 0">Browse Friends</h3>
         <button type="button"
                 data-action="invite-popup#close"
                 aria-label="Close"
                 style="background: none; border: none; font-size: 1.25rem; cursor: pointer; line-height: 1">&times;</button>
       </div>
-
-      <%# Typing in popup mirrors value to the form field via Stimulus %>
-      <input type="text"
-             placeholder="Email or display name"
-             data-invite-popup-target="input"
-             style="width: 100%; margin-bottom: 1rem; padding: 0.4rem; box-sizing: border-box"
-             oninput="this.closest('[data-controller]').querySelector('[data-invite-popup-target=input]:not(this)').value = this.value" />
 
       <% if defined?(@friends) && @friends.any? %>
         <ul style="list-style: none; margin: 0; padding: 0">
@@ -78,7 +100,8 @@
                       data-action="invite-popup#select"
                       data-value="<%= friend.email %>"
                       style="width: 100%; text-align: left; padding: 0.5rem;
-                             border: 1px solid #ddd; border-radius: 4px; cursor: pointer; background: white">
+                             border: 1px solid #ddd; border-radius: 4px;
+                             cursor: pointer; background: white">
                 <strong><%= friend.display_name %></strong>
                 <span style="color: gray; font-size: 0.85em; margin-left: 0.25rem"><%= friend.email %></span>
               </button>
