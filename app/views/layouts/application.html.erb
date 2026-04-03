@@ -1,195 +1,46 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title><%= content_for(:title) || "Csci3100 Group 30" %></title>
+    <title>YourProjectName</title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="application-name" content="Csci3100 Group 30">
-    <meta name="mobile-web-app-capable" content="yes">
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
 
-    <%= yield :head %>
-
-    <link rel="icon" href="/icon.png" type="image/png">
-    <link rel="icon" href="/icon.svg" type="image/svg+xml">
-    <link rel="apple-touch-icon" href="/icon.png">
-
-    <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
+    <%# 這裡載入編譯後的 CSS %>
+    <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
+    <%= stylesheet_link_tag "tailwind", "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
   </head>
 
-  <body>
+  <body class="tw-bg-gradient-to-b tw-from-blue-600 tw-to-black tw-min-h-screen">
 
-    <%# ── Navigation bar ── %>
-    <nav data-testid="main-nav"
-         style="display: flex; justify-content: space-between; align-items: center;
-                padding: 0 1.5rem; 
-                height: 60px;
-                background: white;
-                box-sizing: border-box;
-                border-bottom: 1px solid #e5e7eb; 
-                position: sticky;
-                top: 0; z-index: 40">
-
-      <%# Left side: logo + nav links %>
-      <div style="display: flex; align-items: center; gap: 1.5rem">
-        <%= link_to root_path, aria: { label: "Home" },
-              style: "display: flex; align-items: center; gap: 0.5rem; text-decoration: none; color: inherit" do %>
-          <div style="width: 36px; height: 36px; background: #4f46e5; border-radius: 8px;
-                      display: flex; align-items: center; justify-content: center;
-                      color: white; font-weight: bold; font-size: 1.1rem">M</div>
-          <span style="font-weight: 600; font-size: 1rem">MockFund</span>
-        <% end %>
-
-        <% if user_signed_in? %>
-          <%= link_to "Leagues", leagues_path,
-                style: "font-size: 0.9rem; font-weight: 500; color: #374151; text-decoration: none" %>
-        <% end %>
+    
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+      <a class="navbar-brand" href="#">Navbar</a>
+      <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav">
+          <li class="nav-item active">
+            <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#">Features</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#">Pricing</a>
+        </li>
+        <li class="nav-item">
+        <a class="nav-link disabled" href="#">Disabled</a>
+        </li>
+      </ul>
       </div>
-
-      <%# Right-side icons: mailbox + user %>
-      <div style="display: flex; align-items: center; gap: 0.75rem">
-
-        <%# ── Mailbox notification dropdown (signed-in only) ── %>
-        <% if user_signed_in? %>
-          <div data-controller="mailbox" style="position: relative">
-
-            <button type="button"
-                    data-testid="mailbox-btn"
-                    data-action="mailbox#toggle"
-                    style="width: 36px; height: 36px; background: #e5e7eb; border-radius: 50%;
-                           border: none; cursor: pointer; display: flex; align-items: center;
-                           justify-content: center"
-                    title="Notifications">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-                   fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                <polyline points="22,6 12,13 2,6"/>
-              </svg>
-            </button>
-
-            <div data-mailbox-target="dropdown"
-                 data-testid="mailbox-dropdown"
-                 style="display: none; position: absolute; top: calc(100% + 0.5rem); right: 0;
-                        width: 320px; background: white; border: 1px solid #e5e7eb;
-                        border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.15);
-                        overflow: hidden; z-index: 50">
-
-              <div style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb">
-                <strong style="font-size: 0.95rem">Notifications</strong>
-              </div>
-
-              <div style="max-height: 360px; overflow-y: auto">
-                <% if @notifications&.any? %>
-                  <% @notifications.each do |n| %>
-                    <div style="padding: 0.75rem 1rem; border-bottom: 1px solid #f3f4f6">
-                      <div style="font-size: 0.85rem; font-weight: 600; color: #111827; margin-bottom: 0.2rem">
-                        <%= n.title %>
-                      </div>
-                      <div style="font-size: 0.8rem; color: #6b7280">
-                        <%= truncate(n.body, length: 60) %>
-                      </div>
-                    </div>
-                  <% end %>
-                <% else %>
-                  <p style="padding: 0.75rem 1rem; color: #6b7280; font-size: 0.875rem; margin: 0">
-                    No notifications.
-                  </p>
-                <% end %>
-              </div>
-            </div>
-
-          </div>
-        <% end %>
-
-        <%# ── User icon — placeholder for profile dropdown ── %>
-        <div style="width: 36px; height: 36px; background: #e5e7eb; border-radius: 50%;
-                    display: flex; align-items: center; justify-content: center; cursor: pointer"
-             title="<%= current_user&.display_name %>">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-               fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-            <circle cx="12" cy="7" r="4"/>
-          </svg>
-        </div>
-
-      </div>
-    </nav>
-
-    <%# ── Flash messages ── %>
-    <% flash.each do |type, msg| %>
-      <div class="alert alert-<%= type == 'notice' ? 'success' : 'danger' %>">
-        <%= msg %>
-      </div>
-    <% end %>
-
-    <%# ── Page content ── %>
-    <%= yield %>
-
-    <%# ── Floating friend panel (signed-in users only) ── %>
-    <% if user_signed_in? %>
-      <div data-controller="friend-panel"
-           style="position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 30">
-
-        <%# Toggle button %>
-        <button type="button"
-                data-testid="friend-panel-btn"
-                data-action="friend-panel#toggle"
-                style="width: 48px; height: 48px; border-radius: 50%; background: #4f46e5;
-                       border: none; cursor: pointer; display: flex; align-items: center;
-                       justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.25)"
-                title="Friends">
-          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
-               fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-            <circle cx="9" cy="7" r="4"/>
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-          </svg>
-        </button>
-
-        <%# Friend panel card (hidden until toggled) %>
-        <div data-friend-panel-target="panel"
-             data-testid="friend-panel"
-             style="display: none; position: absolute; bottom: 3.5rem; right: 0;
-                    width: 280px; background: white; border: 1px solid #e5e7eb;
-                    border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.15);
-                    overflow: hidden">
-
-          <div style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb;
-                      display: flex; justify-content: space-between; align-items: center">
-            <strong style="font-size: 0.95rem">Friends</strong>
-            <%= link_to "Manage", friendships_path,
-                  style: "font-size: 0.8rem; color: #4f46e5; text-decoration: none" %>
-          </div>
-
-          <div style="max-height: 300px; overflow-y: auto; padding: 0.5rem 0">
-            <% friends = current_user.friends %>
-            <% if friends.any? %>
-              <% friends.each do |friend| %>
-                <div style="padding: 0.5rem 1rem; display: flex; align-items: center; gap: 0.5rem">
-                  <div style="width: 30px; height: 30px; background: #e5e7eb; border-radius: 50%;
-                              display: flex; align-items: center; justify-content: center;
-                              font-size: 0.8rem; font-weight: 600; flex-shrink: 0">
-                    <%= friend.display_name.first.upcase %>
-                  </div>
-                  <div>
-                    <div style="font-size: 0.875rem; font-weight: 500"><%= friend.display_name %></div>
-                    <div style="font-size: 0.75rem; color: #6b7280"><%= friend.email %></div>
-                  </div>
-                </div>
-              <% end %>
-            <% else %>
-              <p style="padding: 0.75rem 1rem; color: #6b7280; font-size: 0.875rem; margin: 0">
-                No friends yet.
-                <%= link_to "Add friends →", friendships_path, style: "color: #4f46e5" %>
-              </p>
-            <% end %>
-          </div>
-        </div>
-      </div>
-    <% end %>
+      </nav> 
+    
+    <main class="container py-5">
+      <%= yield %> 
+    </main>
 
   </body>
 </html>

@@ -571,7 +571,3 @@ video {
 .tw-to-black {
   --tw-gradient-to: #000 var(--tw-gradient-to-position);
 }
-
-.tw-bg-fixed {
-  background-attachment: fixed;
-}
