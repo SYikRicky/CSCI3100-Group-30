@@ -1,195 +1,177 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title><%= content_for(:title) || "Csci3100 Group 30" %></title>
+    <title>Mock Fund League</title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="application-name" content="Csci3100 Group 30">
-    <meta name="mobile-web-app-capable" content="yes">
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
 
-    <%= yield :head %>
-
-    <link rel="icon" href="/icon.png" type="image/png">
-    <link rel="icon" href="/icon.svg" type="image/svg+xml">
-    <link rel="apple-touch-icon" href="/icon.png">
-
-    <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
+    <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
+    <%= stylesheet_link_tag "tailwind", "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Saira+Stencil+One&display=swap" rel="stylesheet">
+
+    <style>
+      .bnb-yellow        { color: #14B8A6; }
+      .bnb-bg-yellow     { background-color: #14B8A6; }
+      .bnb-bg-yellow:hover { background-color: #d4a409; }
+      .bnb-green         { color: #2EBD85; }
+      .bnb-red           { color: #F6465D; }
+      .bnb-card          { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
+      .bnb-card:hover    { background: rgba(255,255,255,0.07); }
+      .bnb-input         { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12);
+                           color: #EAECEF; border-radius: 6px; padding: 0.6rem 1rem; width: 100%;
+                           font-size: 0.875rem; outline: none; transition: border-color 0.2s; }
+      .bnb-input::placeholder { color: rgba(255,255,255,0.25); }
+      .bnb-input:focus   { border-color: #14B8A6; }
+      .bnb-btn-primary   { background-color: #14B8A6; color: #181A20; font-weight: 700;
+                           border: none; border-radius: 6px; cursor: pointer; transition: background 0.2s;
+                           font-size: 0.875rem; padding: 0.65rem 1.5rem; }
+      .bnb-btn-primary:hover { background-color: #d4a409; }
+      .bnb-btn-ghost     { background: transparent; color: #EAECEF; border: 1px solid rgba(255,255,255,0.2);
+                           border-radius: 6px; cursor: pointer; font-size: 0.875rem;
+                           padding: 0.6rem 1.25rem; transition: border-color 0.2s, background 0.2s; }
+      .bnb-btn-ghost:hover { border-color: #14B8A6; color: #14B8A6; background: rgba(240,185,11,0.05); }
+      .bnb-table tr:hover td { background: rgba(255,255,255,0.03); }
+      .flash-bar         { position: fixed; top: 64px; left: 50%; transform: translateX(-50%);
+                           z-index: 9999; padding: 0.6rem 1.5rem; border-radius: 8px;
+                           font-size: 0.85rem; white-space: nowrap; backdrop-filter: blur(8px); }
+      .flash-notice      { background: rgba(46,189,133,0.15); border: 1px solid rgba(46,189,133,0.3);
+                           color: #2EBD85; }
+      .flash-alert       { background: rgba(246,70,93,0.15); border: 1px solid rgba(246,70,93,0.3);
+                           color: #F6465D; }
+    </style>
   </head>
 
-  <body>
+  <body class="tw-bg-gradient-to-br tw-from-indigo-950 tw-via-slate-950 tw-to-black tw-min-h-screen" style="color: #EAECEF; font-family: Arial, sans-serif;">
 
-    <%# ── Navigation bar ── %>
+    <%# ── Binance-style top navigation ── %>
     <nav data-testid="main-nav"
-         style="display: flex; justify-content: space-between; align-items: center;
-                padding: 0 1.5rem; 
-                height: 60px;
-                background: white;
-                box-sizing: border-box;
-                border-bottom: 1px solid #e5e7eb; 
-                position: sticky;
-                top: 0; z-index: 40">
+         style="position: fixed; top: 0; left: 0; right: 0; z-index: 999;
+                background: rgba(15,17,26,0.85); backdrop-filter: blur(16px);
+                border-bottom: 1px solid rgba(255,255,255,0.07); height: 64px;
+                display: flex; align-items: center;">
+      <div style="max-width: 1280px; margin: 0 auto; padding: 0 1.5rem;
+                  width: 100%; display: flex; align-items: center; gap: 2rem;">
 
-      <%# Left side: logo + nav links %>
-      <div style="display: flex; align-items: center; gap: 1.5rem">
-        <%= link_to root_path, aria: { label: "Home" },
-              style: "display: flex; align-items: center; gap: 0.5rem; text-decoration: none; color: inherit" do %>
-          <div style="width: 36px; height: 36px; background: #4f46e5; border-radius: 8px;
-                      display: flex; align-items: center; justify-content: center;
-                      color: white; font-weight: bold; font-size: 1.1rem">M</div>
-          <span style="font-weight: 600; font-size: 1rem">MockFund</span>
+        <%= link_to root_path, style: "display: flex; align-items: center; gap: 0.6rem; text-decoration: none; flex-shrink: 0;" do %>
+          <%= image_tag "logo.png", alt: "MFL Logo",
+              style: "width: 36px; height: 36px; object-fit: contain;" %>
+          <span class="tw-font-custom" style="color: #EAECEF; font-size: 1rem; letter-spacing: 0.1em;">Mock Fund League</span>
         <% end %>
 
         <% if user_signed_in? %>
-          <%= link_to "Leagues", leagues_path,
-                style: "font-size: 0.9rem; font-weight: 500; color: #374151; text-decoration: none" %>
+          <div style="display: flex; align-items: center; gap: 0.25rem; flex: 1;">
+            <%= link_to "Markets", stocks_path,
+                style: "color: #929AA5; text-decoration: none; font-size: 0.875rem; font-weight: 500;
+                        padding: 0.4rem 0.75rem; border-radius: 4px; transition: color 0.2s;",
+                onmouseover: "this.style.color='#EAECEF'", onmouseout: "this.style.color='#929AA5'" %>
+            <%= link_to "Leagues", leagues_path,
+                style: "color: #929AA5; text-decoration: none; font-size: 0.875rem; font-weight: 500;
+                        padding: 0.4rem 0.75rem; border-radius: 4px; transition: color 0.2s;",
+                onmouseover: "this.style.color='#EAECEF'", onmouseout: "this.style.color='#929AA5'" %>
+            <%= link_to "Friends", friendships_path,
+                style: "color: #929AA5; text-decoration: none; font-size: 0.875rem; font-weight: 500;
+                        padding: 0.4rem 0.75rem; border-radius: 4px; transition: color 0.2s;",
+                onmouseover: "this.style.color='#EAECEF'", onmouseout: "this.style.color='#929AA5'" %>
+          </div>
+        <% else %>
+          <div style="flex: 1;"></div>
         <% end %>
-      </div>
 
-      <%# Right-side icons: mailbox + user %>
-      <div style="display: flex; align-items: center; gap: 0.75rem">
+        <div style="display: flex; align-items: center; gap: 0.75rem; flex-shrink: 0; position: relative;">
+          <% if user_signed_in? %>
 
-        <%# ── Mailbox notification dropdown (signed-in only) ── %>
-        <% if user_signed_in? %>
-          <div data-controller="mailbox" style="position: relative">
-
-            <button type="button"
-                    data-testid="mailbox-btn"
-                    data-action="mailbox#toggle"
-                    style="width: 36px; height: 36px; background: #e5e7eb; border-radius: 50%;
-                           border: none; cursor: pointer; display: flex; align-items: center;
-                           justify-content: center"
-                    title="Notifications">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-                   fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                <polyline points="22,6 12,13 2,6"/>
-              </svg>
+            <%# Friend panel button %>
+            <button data-testid="friend-panel-btn"
+                    onclick="var p=document.getElementById('friend-panel');p.style.display=p.style.display==='none'?'block':'none'"
+                    style="background: none; border: none; cursor: pointer; color: #929AA5;
+                           font-size: 0.8rem; padding: 0.4rem 0.6rem; border-radius: 4px; transition: color 0.2s;"
+                    onmouseover="this.style.color='#EAECEF'" onmouseout="this.style.color='#929AA5'">
+              Friends
             </button>
 
-            <div data-mailbox-target="dropdown"
-                 data-testid="mailbox-dropdown"
-                 style="display: none; position: absolute; top: calc(100% + 0.5rem); right: 0;
-                        width: 320px; background: white; border: 1px solid #e5e7eb;
-                        border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.15);
-                        overflow: hidden; z-index: 50">
-
-              <div style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb">
-                <strong style="font-size: 0.95rem">Notifications</strong>
-              </div>
-
-              <div style="max-height: 360px; overflow-y: auto">
-                <% if @notifications&.any? %>
-                  <% @notifications.each do |n| %>
-                    <div style="padding: 0.75rem 1rem; border-bottom: 1px solid #f3f4f6">
-                      <div style="font-size: 0.85rem; font-weight: 600; color: #111827; margin-bottom: 0.2rem">
-                        <%= n.title %>
-                      </div>
-                      <div style="font-size: 0.8rem; color: #6b7280">
-                        <%= truncate(n.body, length: 60) %>
-                      </div>
-                    </div>
-                  <% end %>
-                <% else %>
-                  <p style="padding: 0.75rem 1rem; color: #6b7280; font-size: 0.875rem; margin: 0">
-                    No notifications.
-                  </p>
+            <%# Friend panel dropdown %>
+            <div id="friend-panel" data-testid="friend-panel"
+                 style="display: none; position: absolute; top: 48px; right: 120px; z-index: 1000;
+                        background: #12141e; border: 1px solid rgba(255,255,255,0.1);
+                        border-radius: 10px; padding: 1rem; min-width: 200px; max-height: 300px; overflow-y: auto;">
+              <p style="color: #929AA5; font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+                        letter-spacing: 0.08em; margin: 0 0 0.75rem;">Friends</p>
+              <% if current_user.friends.any? %>
+                <% current_user.friends.each do |friend| %>
+                  <div style="padding: 0.4rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+                              font-size: 0.82rem; color: #EAECEF;">
+                    <%= friend.email %>
+                  </div>
                 <% end %>
-              </div>
+              <% else %>
+                <p style="color: #929AA5; font-size: 0.82rem; margin: 0;">No friends yet.</p>
+              <% end %>
             </div>
 
-          </div>
-        <% end %>
+            <%# Mailbox button %>
+            <button data-testid="mailbox-btn"
+                    onclick="var d=document.getElementById('mailbox-dropdown');d.style.display=d.style.display==='none'?'block':'none'"
+                    style="background: none; border: none; cursor: pointer; color: #929AA5;
+                           font-size: 1rem; padding: 0.4rem 0.5rem; border-radius: 4px;
+                           position: relative; transition: color 0.2s;"
+                    onmouseover="this.style.color='#EAECEF'" onmouseout="this.style.color='#929AA5'">
+              ✉
+              <% if @notifications&.any? %>
+                <span style="position: absolute; top: 2px; right: 2px; width: 7px; height: 7px;
+                             background: #F6465D; border-radius: 50%; display: block;"></span>
+              <% end %>
+            </button>
 
-        <%# ── User icon — placeholder for profile dropdown ── %>
-        <div style="width: 36px; height: 36px; background: #e5e7eb; border-radius: 50%;
-                    display: flex; align-items: center; justify-content: center; cursor: pointer"
-             title="<%= current_user&.display_name %>">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-               fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-            <circle cx="12" cy="7" r="4"/>
-          </svg>
+            <%# Mailbox dropdown %>
+            <div id="mailbox-dropdown" data-testid="mailbox-dropdown"
+                 style="display: none; position: absolute; top: 48px; right: 60px; z-index: 1000;
+                        background: #12141e; border: 1px solid rgba(255,255,255,0.1);
+                        border-radius: 10px; padding: 1rem; min-width: 280px; max-height: 360px; overflow-y: auto;">
+              <p style="color: #929AA5; font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+                        letter-spacing: 0.08em; margin: 0 0 0.75rem;">Notifications</p>
+              <% if @notifications&.any? %>
+                <% @notifications.each do |n| %>
+                  <div style="padding: 0.6rem 0; border-bottom: 1px solid rgba(255,255,255,0.06);">
+                    <p style="color: #EAECEF; font-size: 0.82rem; font-weight: 600; margin: 0 0 0.2rem;">
+                      <%= n.title %>
+                    </p>
+                    <p style="color: #929AA5; font-size: 0.78rem; margin: 0;"><%= n.body %></p>
+                  </div>
+                <% end %>
+              <% else %>
+                <p style="color: #929AA5; font-size: 0.82rem; margin: 0;">No notifications</p>
+              <% end %>
+            </div>
+
+            <span style="color: #929AA5; font-size: 0.8rem;"><%= current_user.display_name %></span>
+            <%= link_to "Log Out", destroy_user_session_path,
+                data: { turbo_method: :delete },
+                class: "bnb-btn-ghost", style: "font-size: 0.8rem; padding: 0.4rem 0.9rem;" %>
+          <% else %>
+            <%= link_to "Log In", new_user_session_path, class: "bnb-btn-ghost" %>
+            <%= link_to "Get Started", new_user_registration_path, class: "bnb-btn-primary" %>
+          <% end %>
         </div>
 
       </div>
     </nav>
 
     <%# ── Flash messages ── %>
-    <% flash.each do |type, msg| %>
-      <div class="alert alert-<%= type == 'notice' ? 'success' : 'danger' %>">
-        <%= msg %>
-      </div>
+    <% if flash[:notice] %>
+      <div class="flash-bar flash-notice"><%= flash[:notice] %></div>
+    <% end %>
+    <% if flash[:alert] %>
+      <div class="flash-bar flash-alert"><%= flash[:alert] %></div>
     <% end %>
 
-    <%# ── Page content ── %>
-    <%= yield %>
-
-    <%# ── Floating friend panel (signed-in users only) ── %>
-    <% if user_signed_in? %>
-      <div data-controller="friend-panel"
-           style="position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 30">
-
-        <%# Toggle button %>
-        <button type="button"
-                data-testid="friend-panel-btn"
-                data-action="friend-panel#toggle"
-                style="width: 48px; height: 48px; border-radius: 50%; background: #4f46e5;
-                       border: none; cursor: pointer; display: flex; align-items: center;
-                       justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.25)"
-                title="Friends">
-          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
-               fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-            <circle cx="9" cy="7" r="4"/>
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-          </svg>
-        </button>
-
-        <%# Friend panel card (hidden until toggled) %>
-        <div data-friend-panel-target="panel"
-             data-testid="friend-panel"
-             style="display: none; position: absolute; bottom: 3.5rem; right: 0;
-                    width: 280px; background: white; border: 1px solid #e5e7eb;
-                    border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.15);
-                    overflow: hidden">
-
-          <div style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb;
-                      display: flex; justify-content: space-between; align-items: center">
-            <strong style="font-size: 0.95rem">Friends</strong>
-            <%= link_to "Manage", friendships_path,
-                  style: "font-size: 0.8rem; color: #4f46e5; text-decoration: none" %>
-          </div>
-
-          <div style="max-height: 300px; overflow-y: auto; padding: 0.5rem 0">
-            <% friends = current_user.friends %>
-            <% if friends.any? %>
-              <% friends.each do |friend| %>
-                <div style="padding: 0.5rem 1rem; display: flex; align-items: center; gap: 0.5rem">
-                  <div style="width: 30px; height: 30px; background: #e5e7eb; border-radius: 50%;
-                              display: flex; align-items: center; justify-content: center;
-                              font-size: 0.8rem; font-weight: 600; flex-shrink: 0">
-                    <%= friend.display_name.first.upcase %>
-                  </div>
-                  <div>
-                    <div style="font-size: 0.875rem; font-weight: 500"><%= friend.display_name %></div>
-                    <div style="font-size: 0.75rem; color: #6b7280"><%= friend.email %></div>
-                  </div>
-                </div>
-              <% end %>
-            <% else %>
-              <p style="padding: 0.75rem 1rem; color: #6b7280; font-size: 0.875rem; margin: 0">
-                No friends yet.
-                <%= link_to "Add friends →", friendships_path, style: "color: #4f46e5" %>
-              </p>
-            <% end %>
-          </div>
-        </div>
-      </div>
-    <% end %>
+    <main style="padding-top: 64px;">
+      <%= yield %>
+    </main>
 
   </body>
 </html>

@@ -1,11 +1,30 @@
-<% content_for :title, "New league" %>
+<% content_for :title, "New League" %>
 
-<h1>New league</h1>
+<div style="max-width: 680px; margin: 0 auto; padding: 2.5rem 1.5rem;">
+  <div style="margin-bottom: 0.75rem;">
+    <%= link_to "← Back to Leagues", leagues_path,
+        style: "color: #929AA5; text-decoration: none; font-size: 0.82rem;",
+        onmouseover: "this.style.color='#EAECEF'", onmouseout: "this.style.color='#929AA5'" %>
+  </div>
+  <h1 class="tw-font-custom" style="color: #EAECEF; font-size: 1.75rem; letter-spacing: 0.1em;
+              text-transform: uppercase; margin: 0 0 1.75rem;">New League</h1>
 
-<%= render "form", league: @league %>
+  <% if @league.errors.any? %>
+    <div style="background: #dc3545; border: 1px solid #c82333; border-radius: 8px; padding: 1rem; 
+                margin-bottom: 1.5rem; color: white;">
+      <h2 style="margin: 0 0 0.5rem 0; font-size: 1rem;">
+        <%= pluralize(@league.errors.count, "error") %> prohibited this league from being saved:
+      </h2>
+      <ul style="margin: 0; padding-left: 1.5rem;">
+        <% @league.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
 
-<br>
-
-<div>
-  <%= link_to "Back to leagues", leagues_path %>
+  <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+              border-radius: 12px; padding: 2rem;">
+    <%= render "form", league: @league %>
+  </div>
 </div>

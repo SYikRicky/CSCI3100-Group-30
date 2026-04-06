@@ -4,6 +4,8 @@ class LeaguesController < ApplicationController
 
   def index
     @leagues = League.all
+    @league  = League.new
+    @friends = current_user.friends
   end
 
   def show
@@ -41,15 +43,25 @@ class LeaguesController < ApplicationController
     if unknown.any?
       @league.errors.add(:base, "Invitee identifier not found: #{unknown.join(', ')}")
       @friends = current_user.friends
-      render :new, status: :unprocessable_content and return
+      respond_to do |format|
+        format.html { render :new, status: :unprocessable_content }
+        format.json { render json: { errors: @league.errors.full_messages }, status: :unprocessable_entity }
+      end
+      return
     end
 
     if @league.save
       invitees.each { |invitee| invite_to_league(invitee) if invitee != current_user }
-      redirect_to @league, notice: "League was successfully created."
+      respond_to do |format|
+        format.html { redirect_to @league, notice: "League was successfully created." }
+        format.json { render json: { notice: "League \"#{@league.name}\" created successfully!", url: league_path(@league) } }
+      end
     else
       @friends = current_user.friends
-      render :new, status: :unprocessable_content
+      respond_to do |format|
+        format.html { render :new, status: :unprocessable_content }
+        format.json { render json: { errors: @league.errors.full_messages }, status: :unprocessable_entity }
+      end
     end
   end
 
@@ -65,18 +77,26 @@ class LeaguesController < ApplicationController
     @league = League.find_by(invite_code: params[:invite_code])
 
     if @league.nil?
-      flash.now[:alert] = "Invalid invite code."
-      render :join, status: :unprocessable_content and return
+      respond_to do |format|
+        format.html { flash.now[:alert] = "Invalid invite code."; render :join, status: :unprocessable_content }
+        format.json { render json: { error: "Invalid invite code. Please check and try again." }, status: :unprocessable_entity }
+      end
+      return
     end
 
     membership = LeagueMembership.new(user: current_user, league: @league, role: :participant)
     portfolio  = Portfolio.new(user: current_user, league: @league, cash_balance: @league.starting_capital)
 
     if membership.save && portfolio.save
-      redirect_to @league, notice: "You have joined the league!"
+      respond_to do |format|
+        format.html { redirect_to @league, notice: "You have joined the league!" }
+        format.json { render json: { notice: "You have joined #{@league.name}!", url: league_path(@league) } }
+      end
     else
-      flash.now[:alert] = "Could not join league."
-      render :join, status: :unprocessable_content
+      respond_to do |format|
+        format.html { flash.now[:alert] = "Could not join league."; render :join, status: :unprocessable_content }
+        format.json { render json: { error: "Could not join league. You may already be a member." }, status: :unprocessable_entity }
+      end
     end
   end
 
