@@ -30,7 +30,7 @@ class AlpacaService
         req.params["limit"] = 10000 # Increased limit to speed up fetching
         req.params["start"] = normalize_rfc3339(start_date)
         req.params["end"] = normalize_rfc3339(end_date)
-        
+
         # Pass the pagination token if we have one from the previous loop
         req.params["page_token"] = page_token if page_token
       end
@@ -39,13 +39,13 @@ class AlpacaService
 
       parsed = JSON.parse(response.body)
       bars = extract_bars(parsed)
-      
+
       # Add this page's bars to our master list
       all_bars.concat(bars)
 
       # Check for the next page token
       page_token = parsed["next_page_token"]
-      
+
       # Stop looping if there are no more pages
       break if page_token.nil? || page_token.empty?
     end
@@ -96,7 +96,7 @@ class AlpacaService
       when DateTime
         value.to_time.utc
       when String
-       # Time.iso8601(value).utc
+        # Time.iso8601(value).utc
         Time.zone.parse(value).utc
       else
         raise ArgumentError, "Unsupported date type for Alpaca: #{value.class}"
