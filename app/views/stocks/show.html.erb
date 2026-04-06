@@ -1,0 +1,94 @@
+<div id="chart-container" style="width: 100%; height: 400px;"></div>
+<script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+<script>
+  const historicalData  = <%= raw @chart_data %>;
+  const INITIAL_COUNT   = 50;
+  const STEPS           = 100;
+  const TICK_MS         = 200;
+  const CANDLE_GAP_MS   = 200;
+  const CANDLE_TOTAL_MS = (STEPS * TICK_MS) + CANDLE_GAP_MS; // 每根總時間
+
+  const chart = LightweightCharts.createChart(document.getElementById('chart-container'), {
+    layout: { background: { color: '#1a1a2e' }, textColor: '#ffffff' },
+    grid:   { vertLines: { color: '#2a2a4a' }, horzLines: { color: '#2a2a4a' } },
+    width:  document.getElementById('chart-container').clientWidth,
+    height: 400,
+  });
+
+  const candleSeries = chart.addCandlestickSeries({
+    upColor: '#26a69a', downColor: '#ef5350',
+    borderVisible: false,
+    wickUpColor: '#26a69a', wickDownColor: '#ef5350',
+  });
+
+  // 計算起點
+  const serverStartTime = <%= Rails.application.config.server_start_time.to_i * 1000 %>;
+  const elapsed   = Date.now() - serverStartTime;
+  const skipCount = Math.floor(elapsed / CANDLE_TOTAL_MS);
+  const startIndex = Math.min(INITIAL_COUNT + skipCount, historicalData.length - 1);
+
+  // 顯示到目前為止嘅歷史
+  candleSeries.setData(historicalData.slice(0, startIndex));
+  chart.timeScale().fitContent();
+
+  function generateTicks(candle, steps) {
+    const { open, high, low, close } = candle;
+    const ticks = [open];
+    const hitHighFirst = Math.random() > 0.5;
+    if (hitHighFirst) {
+      for (let i = 1; i < steps * 0.3; i++)
+        ticks.push(open + (high - open) * (i / (steps * 0.3)));
+      for (let i = 0; i < steps * 0.4; i++)
+        ticks.push(high + (low - high) * (i / (steps * 0.4)));
+      for (let i = 0; i <= steps * 0.3; i++)
+        ticks.push(low + (close - low) * (i / (steps * 0.3)));
+    } else {
+      for (let i = 1; i < steps * 0.3; i++)
+        ticks.push(open + (low - open) * (i / (steps * 0.3)));
+      for (let i = 0; i < steps * 0.4; i++)
+        ticks.push(low + (high - low) * (i / (steps * 0.4)));
+      for (let i = 0; i <= steps * 0.3; i++)
+        ticks.push(high + (close - high) * (i / (steps * 0.3)));
+    }
+    return ticks;
+  }
+
+  function playCandle(index, onDone) {
+    if (index >= historicalData.length) return;
+    const candle = historicalData[index];
+    const ticks  = generateTicks(candle, STEPS);
+    let tickIndex = 0;
+    const tickInterval = setInterval(() => {
+      const currentClose = ticks[tickIndex];
+      candleSeries.update({
+        time:  candle.time,
+        open:  candle.open,
+        high:  Math.max(candle.open, currentClose),
+        low:   Math.min(candle.open, currentClose),
+        close: currentClose,
+      });
+      tickIndex++;
+      if (tickIndex >= ticks.length) {
+        clearInterval(tickInterval);
+        candleSeries.update(candle);
+        setTimeout(onDone, CANDLE_GAP_MS);
+      }
+    }, TICK_MS);
+  }
+
+  let currentIndex = startIndex;
+  function playNext() {
+    if (currentIndex >= historicalData.length) return;
+    playCandle(currentIndex, () => {
+      currentIndex++;
+      playNext();
+    });
+  }
+
+  playNext();
+
+  window.addEventListener('resize', () => {
+    chart.applyOptions({ width: document.getElementById('chart-container').clientWidth });
+  });
+</script>
+</div>
