@@ -74,4 +74,3 @@ RSpec.describe AlpacaService, type: :service do
     end
   end
 end
-

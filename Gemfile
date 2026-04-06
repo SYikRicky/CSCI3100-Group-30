@@ -7,7 +7,7 @@ gem "rails", "~> 8.1.3"
 # The modern asset pipeline for Rails [https://github.com/rails/propshaft]
 gem "propshaft"
 # SQLite for development and test only
-gem "sqlite3", ">= 2.1", group: [:development, :test]
+gem "sqlite3", ">= 2.1", group: [ :development, :test ]
 
 # PostgreSQL for production (Heroku)
 gem "pg", "~> 1.5", group: :production

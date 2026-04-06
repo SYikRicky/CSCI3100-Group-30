@@ -3,7 +3,7 @@ Rails.application.routes.draw do
   get "stocks/show"
   devise_for :users
 
-  resources :stocks, only: [:index, :show]
+  resources :stocks, only: [ :index, :show ]
   resources :leagues, only: [ :index, :show, :new, :create, :destroy ] do
     member do
       post :invite

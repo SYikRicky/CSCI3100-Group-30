@@ -29,7 +29,7 @@ module StocksHelper
     "NKE"   => { url: "https://www.nike.com",                 logo: "nike.com" },
     "DIS"   => { url: "https://www.thewaltdisneycompany.com", logo: "thewaltdisneycompany.com" },
     "INTC"  => { url: "https://www.intel.com",                logo: "intel.com" },
-    "SBUX"  => { url: "https://www.starbucks.com",            logo: "starbucks.com" },
+    "SBUX"  => { url: "https://www.starbucks.com",            logo: "starbucks.com" }
   }.freeze
 
   def stock_logo_url(ticker)

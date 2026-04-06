@@ -20,7 +20,7 @@ class AdvancePriceJob < ApplicationJob
 
       next if snapshots.empty?
 
-      current_index = [INITIAL_COUNT + skip_count, snapshots.length - 1].min
+      current_index = [ INITIAL_COUNT + skip_count, snapshots.length - 1 ].min
       current_price = snapshots[current_index]
 
       stock.update_columns(
