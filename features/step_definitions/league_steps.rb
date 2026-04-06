@@ -78,14 +78,10 @@ When(/^I create a league and invite "([^"]+)" and "([^"]+)"$/) do |id1, id2|
 end
 
 Then(/^"(.*)" should be a member of the league$/) do |email|
-  if page.has_content?("not found")
-    expect(page).to have_content("not found")
-  else
-    user = User.find_by(email: email)
-    expect(user).not_to be_nil, "User with email #{email} should exist"
-    league = League.last
-    expect(LeagueMembership.exists?(user: user, league: league)).to be true
-  end
+  user = User.find_by(email: email)
+  expect(user).not_to be_nil, "User with email #{email} should exist"
+  league = League.last
+  expect(LeagueMembership.exists?(user: user, league: league)).to be true
 end
 
 Then(/^I should see an error about "(.*)" not being found$/) do |email|
