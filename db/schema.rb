@@ -22,6 +22,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_02_120000) do
     t.index ["user_id"], name: "index_friendships_on_user_id"
   end
 
+  create_table "holdings", force: :cascade do |t|
+    t.decimal "average_cost", precision: 15, scale: 4, null: false
+    t.datetime "created_at", null: false
+    t.integer "portfolio_id", null: false
+    t.decimal "quantity", precision: 15, scale: 4, null: false
+    t.integer "stock_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["portfolio_id", "stock_id"], name: "index_holdings_on_portfolio_id_and_stock_id", unique: true
+    t.index ["portfolio_id"], name: "index_holdings_on_portfolio_id"
+    t.index ["stock_id"], name: "index_holdings_on_stock_id"
+  end
+
   create_table "league_memberships", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.integer "league_id", null: false
@@ -55,6 +67,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_02_120000) do
     t.integer "user_id", null: false
     t.index ["user_id", "created_at"], name: "index_notifications_on_user_id_and_created_at"
     t.index ["user_id"], name: "index_notifications_on_user_id"
+  end
+
+  create_table "portfolio_valuations", force: :cascade do |t|
+    t.decimal "cash_value", precision: 15, scale: 4, null: false
+    t.datetime "created_at", null: false
+    t.decimal "holdings_value", precision: 15, scale: 4, null: false
+    t.integer "portfolio_id", null: false
+    t.decimal "total_value", precision: 15, scale: 4, null: false
+    t.datetime "updated_at", null: false
+    t.datetime "valued_at", null: false
+    t.index ["portfolio_id", "valued_at"], name: "index_portfolio_valuations_on_portfolio_id_and_valued_at"
+    t.index ["portfolio_id"], name: "index_portfolio_valuations_on_portfolio_id"
   end
 
   create_table "portfolios", force: :cascade do |t|
@@ -120,10 +144,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_02_120000) do
 
   add_foreign_key "friendships", "users"
   add_foreign_key "friendships", "users", column: "friend_id"
+  add_foreign_key "holdings", "portfolios"
+  add_foreign_key "holdings", "stocks"
   add_foreign_key "league_memberships", "leagues"
   add_foreign_key "league_memberships", "users"
   add_foreign_key "leagues", "users", column: "owner_id"
   add_foreign_key "notifications", "users"
+  add_foreign_key "portfolio_valuations", "portfolios"
   add_foreign_key "portfolios", "leagues"
   add_foreign_key "portfolios", "users"
   add_foreign_key "price_snapshots", "stocks"
