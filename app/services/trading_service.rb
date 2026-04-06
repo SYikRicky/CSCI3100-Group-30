@@ -28,7 +28,7 @@ class TradingService
         executed_at: executed_at
       )
 
-      PortfolioValuation.record!(portfolio: portfolio, valued_at: executed_at)
+      PortfolioValuationService.new(portfolio: portfolio, valued_at: executed_at).call
       trade
     end
   end
@@ -45,7 +45,7 @@ class TradingService
 
   def process_buy!
     cost = quantity * price
-    raise Error, "insufficient cash balance" if portfolio.cash_balance.to_d < cost
+    raise Error, "Insufficient cash balance" if portfolio.cash_balance.to_d < cost
 
     portfolio.update!(cash_balance: portfolio.cash_balance.to_d - cost)
 

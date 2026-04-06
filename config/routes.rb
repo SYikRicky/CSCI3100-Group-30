@@ -15,6 +15,10 @@ Rails.application.routes.draw do
   end
 
   resources :friendships, only: [ :index, :create, :update, :destroy ]
+  resources :portfolios, only: [ :show ] do
+    resources :trades, only: [ :create ]
+  end
+
   root to: "home#index"
 
   get "up" => "rails/health#show", as: :rails_health_check
