@@ -1,74 +1,169 @@
-<div class="tw-font-custom tw-w-[480px] tw-h-[350px]  tw-mt-[140px] tw-pt-8 tw-rounded-2xl tw-ml-[360px] tw-bg-white/5 tw-backdrop-blur-xl tw-border-t tw-border-white/20 tw-shadow-[0_-20px_60px_-15px_rgba(255,255,255,0.1)] tw-text-white tw-text-center">
-  <h1 class="tw-text-5xl tw-font-custom tw-mt-6 tw-mb-6 tw-tracking-widest tw-uppercase tw-text-white">
-    Mock Fund League
-  </h1>
-  
-  <p class="tw-text-lg tw-text-white/70 tw-mb-10 tw-font-light">
-    Compete with friends in virtual stock trading leagues.
-  </p>
+<%# ── Hero Section ── %>
+<section style="max-width: 1280px; margin: 0 auto; padding: 5rem 1.5rem 3rem;
+                display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center;">
 
-  <div class="tw-flex tw-flex-col tw-items-center tw-gap-6">
+  <%# Left: Headline + CTA %>
+  <div>
+    <p style="color: #14B8A6; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.15em;
+              text-transform: uppercase; margin: 0 0 1rem;">
+      Virtual Stock Trading Platform
+    </p>
+
+    <h1 class="tw-font-custom" style="font-size: 2.8rem; line-height: 1.15; color: #EAECEF;
+                letter-spacing: 0.05em; margin: 0 0 1.25rem;">
+      Compete &amp; Trade<br>
+      <span style="color: #14B8A6;">Like the Markets</span>
+    </h1>
+
+    <p style="color: #929AA5; font-size: 1rem; line-height: 1.65; margin: 0 0 2.5rem; max-width: 420px;">
+      Create leagues with friends, trade virtual stocks with real market data,
+      and climb the leaderboard. No real money — all the excitement.
+    </p>
+
     <% if user_signed_in? %>
-      <div class="tw-text-white">
-        Welcome back, <span class="tw-font-bold tw-text-blue-400"><%= current_user.display_name %></span>!
+      <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+        <%= link_to "Go to My Leagues", leagues_path, class: "bnb-btn-primary",
+            style: "padding: 0.75rem 2rem; font-size: 1rem; text-decoration: none; border-radius: 6px;
+                    background: #14B8A6; color: #181A20; font-weight: 700;" %>
+        <p style="color: #929AA5; font-size: 0.9rem; margin: 0;">
+          Welcome back, <span style="color: #14B8A6; font-weight: 700;"><%= current_user.display_name %>!</span>
+        </p>
       </div>
-      
-      <div class="tw-flex tw-items-center tw-gap-4">
-        <%= link_to "My Leagues", leagues_path, 
-            class: "tw-px-8 tw-py-3 tw-bg-blue-600 tw-text-white tw-rounded-lg hover:tw-bg-blue-500 tw-transition-all tw-shadow-lg" %>
-        
-        <%= link_to "Sign Out", destroy_user_session_path, 
-            data: { turbo_method: :delete }, 
-            class: "tw-text-sm tw-text-white/40 hover:tw-text-white/80 tw-underline tw-decoration-dotted" %>
-      </div>
-
     <% else %>
-      <div class="tw-flex tw-gap-4">
-        <%= link_to "Sign In", new_user_session_path, 
-            class: "tw-px-6 tw-py-2 tw-border tw-border-white/30 tw-text-white tw-rounded-lg hover:tw-bg-white/10 tw-transition" %>
-            
-        <%= link_to "Sign Up", new_user_registration_path, 
-            class: "tw-px-6 tw-py-2 tw-bg-white tw-text-black tw-rounded-lg hover:tw-bg-gray-200 tw-transition tw-font-bold" %>
+      <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+        <%= link_to "Get Started — It's Free", new_user_registration_path,
+            style: "background: #14B8A6; color: #181A20; font-weight: 700; text-decoration: none;
+                    border-radius: 6px; padding: 0.75rem 2rem; font-size: 1rem; transition: background 0.2s;",
+            onmouseover: "this.style.background='#d4a409'", onmouseout: "this.style.background='#14B8A6'" %>
+        <%= link_to "Sign In", new_user_session_path, class: "bnb-btn-ghost",
+            style: "text-decoration: none; padding: 0.75rem 1.5rem; font-size: 1rem;" %>
       </div>
     <% end %>
   </div>
 
- <div class="tw-group tw-mt-10 -tw-ml-2 tw-h-12 tw-w-100 tw-bg-transparent [perspective:1000px]">
-  
-  <div class="tw-relative tw-h-full tw-w-full tw-transition-transform tw-duration-700 [transform-style:preserve-3d] group-hover:[transform:rotateY(180deg)]">
-    
-    <div class="tw-absolute tw-inset-0 tw-flex tw-items-center tw-justify-center tw-gap-3 tw-bg-transparent tw-text-white tw-text-[24px] tw-font-medium [backface-visibility:hidden]">
-      <span class="tw-text-yellow-400">★</span>
-      <span>Real competition</span>
-      <span class="tw-text-yellow-400">★</span>
-    </div>
+  <%# Right: Feature highlights card %>
+  <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+              border-radius: 16px; padding: 2rem; backdrop-filter: blur(12px);">
 
-    <div class="tw-absolute tw-inset-0 tw-flex tw-items-center tw-justify-center tw-gap-3 tw-bg-transparent tw-text-white tw-text-[24px] [backface-visibility:hidden] [transform:rotateY(180deg)]">
-      <span class="tw-text-yellow-400">★</span>
-      <span>Join leagues</span>
-      <span class="tw-text-yellow-400">★</span>
-    </div>
+    <p style="color: #929AA5; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.12em; margin: 0 0 1.25rem;">
+      Platform Highlights
+    </p>
 
+    <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+      <div style="display: flex; align-items: flex-start; gap: 1rem;">
+        <div style="width: 36px; height: 36px; background: rgba(240,185,11,0.12); border-radius: 8px;
+                    display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 1rem;">
+          🏆
+        </div>
+        <div>
+          <p style="color: #EAECEF; font-size: 0.9rem; font-weight: 600; margin: 0 0 0.2rem;">League Competitions</p>
+          <p style="color: #929AA5; font-size: 0.8rem; margin: 0; line-height: 1.5;">
+            Create private leagues, invite friends, set custom capital and dates.
+          </p>
+        </div>
+      </div>
+
+      <div style="border-top: 1px solid rgba(255,255,255,0.06);"></div>
+
+      <div style="display: flex; align-items: flex-start; gap: 1rem;">
+        <div style="width: 36px; height: 36px; background: rgba(46,189,133,0.12); border-radius: 8px;
+                    display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 1rem;">
+          📈
+        </div>
+        <div>
+          <p style="color: #EAECEF; font-size: 0.9rem; font-weight: 600; margin: 0 0 0.2rem;">Real Stock Data</p>
+          <p style="color: #929AA5; font-size: 0.8rem; margin: 0; line-height: 1.5;">
+            Trade up to 30 stocks with live candlestick charts powered by real market data.
+          </p>
+        </div>
+      </div>
+
+      <div style="border-top: 1px solid rgba(255,255,255,0.06);"></div>
+
+      <div style="display: flex; align-items: flex-start; gap: 1rem;">
+        <div style="width: 36px; height: 36px; background: rgba(99,102,241,0.15); border-radius: 8px;
+                    display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 1rem;">
+          👥
+        </div>
+        <div>
+          <p style="color: #EAECEF; font-size: 0.9rem; font-weight: 600; margin: 0 0 0.2rem;">Social Trading</p>
+          <p style="color: #929AA5; font-size: 0.8rem; margin: 0; line-height: 1.5;">
+            Add friends, join their leagues, and see who is doing best.
+          </p>
+        </div>
+      </div>
     </div>
   </div>
+</section>
 
-  <div class="tw-group tw-mt-6 -tw-ml-2 tw-h-12 tw-w-120 tw-bg-transparent [perspective:1000px]">
-  
-  <div class="tw-relative tw-h-full tw-w-full tw-transition-transform tw-duration-700 [transform-style:preserve-3d] group-hover:[transform:rotateY(180deg)]">
-    
-    <div class="tw-absolute tw-inset-0 tw-flex tw-items-center tw-justify-center tw-gap-3 tw-bg-transparent tw-text-white  tw-text-[24px] [backface-visibility:hidden]">
-      <span class="tw-text-yellow-400">★</span>
-      <span>Various assets</span>
-      <span class="tw-text-yellow-400">★</span>
+<%# ── Stats bar ── %>
+<section style="border-top: 1px solid rgba(255,255,255,0.06);
+                border-bottom: 1px solid rgba(255,255,255,0.06);
+                background: rgba(255,255,255,0.02);">
+  <div style="max-width: 1280px; margin: 0 auto; padding: 1.5rem;
+              display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; text-align: center;">
+    <div>
+      <p style="color: #14B8A6; font-size: 1.75rem; font-weight: 700; margin: 0; font-family: 'Saira Stencil One', sans-serif;">
+        Real-Time
+      </p>
+      <p style="color: #929AA5; font-size: 0.8rem; margin: 0.25rem 0 0;">stock market data</p>
     </div>
-
-    <div class="tw-absolute tw-inset-0 tw-flex tw-items-center tw-justify-center tw-gap-3 tw-bg-transparent tw-text-white tw-text-[24px] [backface-visibility:hidden] [transform:rotateY(180deg)]">
-      <span class="tw-text-yellow-400">★</span>
-      <span>UP to 30 stocks</span>
-      <span class="tw-text-yellow-400">★</span>
+    <div style="border-left: 1px solid rgba(255,255,255,0.06); border-right: 1px solid rgba(255,255,255,0.06);">
+      <p style="color: #14B8A6; font-size: 1.75rem; font-weight: 700; margin: 0; font-family: 'Saira Stencil One', sans-serif;">
+        30+
+      </p>
+      <p style="color: #929AA5; font-size: 0.8rem; margin: 0.25rem 0 0;">tradeable stocks</p>
     </div>
-
+    <div>
+      <p style="color: #14B8A6; font-size: 1.75rem; font-weight: 700; margin: 0; font-family: 'Saira Stencil One', sans-serif;">
+        Zero
+      </p>
+      <p style="color: #929AA5; font-size: 0.8rem; margin: 0.25rem 0 0;">real money required</p>
+    </div>
   </div>
-</div>
+</section>
 
-</div>
+<%# ── How it works ── %>
+<section style="max-width: 1280px; margin: 0 auto; padding: 4rem 1.5rem;">
+  <h2 class="tw-font-custom" style="color: #EAECEF; font-size: 1.5rem; letter-spacing: 0.1em;
+              text-align: center; margin: 0 0 3rem; text-transform: uppercase;">
+    How It Works
+  </h2>
+
+  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem;">
+    <% [
+      { step: "01", title: "Create or Join a League", desc: "Set up a league with custom starting capital and invite friends, or join with an invite code.", color: "#14B8A6" },
+      { step: "02", title: "Browse & Trade Stocks",   desc: "Explore the markets, view live candlestick charts, and execute virtual trades within your league.", color: "#2EBD85" },
+      { step: "03", title: "Track Your Performance",  desc: "Monitor your portfolio, compare with league members, and see who tops the leaderboard.", color: "#6366f1" }
+    ].each do |item| %>
+      <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+                  border-radius: 12px; padding: 1.75rem; position: relative; overflow: hidden;">
+        <span style="position: absolute; top: 1rem; right: 1.25rem; font-size: 2.5rem;
+                     font-weight: 900; color: rgba(255,255,255,0.04); font-family: Arial;">
+          <%= item[:step] %>
+        </span>
+        <div style="width: 8px; height: 8px; background: <%= item[:color] %>; border-radius: 50%; margin-bottom: 1rem;"></div>
+        <h3 style="color: #EAECEF; font-size: 0.95rem; font-weight: 700; margin: 0 0 0.6rem;"><%= item[:title] %></h3>
+        <p style="color: #929AA5; font-size: 0.82rem; line-height: 1.6; margin: 0;"><%= item[:desc] %></p>
+      </div>
+    <% end %>
+  </div>
+</section>
+
+<%# ── CTA Banner ── %>
+<% unless user_signed_in? %>
+  <section style="background: rgba(240,185,11,0.06); border-top: 1px solid rgba(240,185,11,0.15);
+                  border-bottom: 1px solid rgba(240,185,11,0.15); padding: 3rem 1.5rem; text-align: center;">
+    <h2 class="tw-font-custom" style="color: #EAECEF; font-size: 1.75rem; letter-spacing: 0.08em; margin: 0 0 0.75rem;">
+      Ready to Start Trading?
+    </h2>
+    <p style="color: #929AA5; font-size: 0.9rem; margin: 0 0 1.75rem;">
+      Sign up free and create your first league in under a minute.
+    </p>
+    <%= link_to "Create Account", new_user_registration_path,
+        style: "display: inline-block; background: #14B8A6; color: #181A20; font-weight: 700;
+                text-decoration: none; border-radius: 6px; padding: 0.85rem 2.5rem; font-size: 1rem;
+                transition: background 0.2s;",
+        onmouseover: "this.style.background='#d4a409'", onmouseout: "this.style.background='#14B8A6'" %>
+  </section>
+<% end %>

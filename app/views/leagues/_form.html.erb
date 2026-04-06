@@ -1,8 +1,11 @@
-<%= form_with(model: league, data: { controller: "invite-popup" }) do |form| %>
+<%= form_with(model: league, id: "new-league-form", data: { controller: "invite-popup", turbo: false }) do |form| %>
   <% if league.errors.any? %>
-    <div style="color: red">
-      <h2><%= pluralize(league.errors.count, "error") %> prohibited this league from being saved:</h2>
-      <ul>
+    <div style="background: rgba(246,70,93,0.1); border: 1px solid rgba(246,70,93,0.25);
+                border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.5rem;">
+      <p style="color: #F6465D; font-size: 0.85rem; font-weight: 700; margin: 0 0 0.4rem;">
+        <%= pluralize(league.errors.count, "error") %> prevented this league from being saved:
+      </p>
+      <ul style="color: #F6465D; font-size: 0.82rem; margin: 0; padding-left: 1.25rem; opacity: 0.85;">
         <% league.errors.each do |error| %>
           <li><%= error.full_message %></li>
         <% end %>
@@ -10,68 +13,59 @@
     </div>
   <% end %>
 
-  <div>
-    <%= form.label :name, style: "display: block" %>
-    <%= form.text_field :name %>
-  </div>
-
-  <div>
-    <%= form.label :description, style: "display: block" %>
-    <%= form.text_field :description %>
-  </div>
-
-  <div>
-    <%= form.label :starting_capital, style: "display: block" %>
-    <%= form.text_field :starting_capital %>
-  </div>
-
-  <div>
-    <%= form.label :starts_at, style: "display: block" %>
-    <%= form.datetime_local_field :starts_at %>
-  </div>
-
-  <div>
-    <%= form.label :ends_at, style: "display: block" %>
-    <%= form.datetime_local_field :ends_at %>
-  </div>
+  <% [
+    { field: :name,             label: "League Name",       type: :text_field },
+    { field: :description,      label: "Description",       type: :text_field },
+    { field: :starting_capital, label: "Starting Capital ($)", type: :text_field },
+    { field: :starts_at,        label: "Starts At",         type: :datetime_local_field },
+    { field: :ends_at,          label: "Ends At",           type: :datetime_local_field },
+  ].each do |f| %>
+    <div style="margin-bottom: 1.25rem;">
+      <%= form.label f[:field], f[:label],
+          style: "display: block; color: #929AA5; font-size: 0.75rem; font-weight: 700;
+                  text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;" %>
+      <%= form.send(f[:type], f[:field], class: "bnb-input") %>
+    </div>
+  <% end %>
 
   <%# ── Multi-invitee tags field ── %>
-  <div>
-    <label style="display: block; margin-bottom: 0.3rem">
-      Invitees <span style="color: #6b7280; font-weight: normal">(optional)</span>
+  <div style="margin-bottom: 1.25rem;">
+    <label style="display: block; color: #929AA5; font-size: 0.75rem; font-weight: 700;
+                  text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;">
+      Invitees <span style="color: #929AA5; font-weight: 400; text-transform: none; letter-spacing: normal;">(optional)</span>
     </label>
 
     <%# Chip display area %>
     <div data-invite-popup-target="tags"
-         style="display: flex; flex-wrap: wrap; gap: 0.4rem; min-height: 2.2rem;
-                border: 1px solid #d1d5db; border-radius: 6px; padding: 0.35rem;
-                background: #f9fafb; margin-bottom: 0.4rem">
+         style="display: flex; flex-wrap: wrap; gap: 0.4rem; min-height: 2.4rem;
+                border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; padding: 0.4rem;
+                background: rgba(255,255,255,0.07); margin-bottom: 0.5rem;">
     </div>
 
-    <%# Single CSV hidden field — Stimulus keeps it in sync; Capybara can set it directly %>
+    <%# Hidden field for Stimulus %>
     <input type="hidden"
            id="league_invitee_identifiers_raw"
            name="league[invitee_identifiers_raw]"
            data-invite-popup-target="rawField" />
 
     <%# Input row %>
-    <div style="display: flex; gap: 0.5rem; align-items: center">
+    <div style="display: flex; gap: 0.5rem; align-items: center;">
       <input type="text"
              data-invite-popup-target="input"
              placeholder="Email or display name"
-             style="flex: 1; padding: 0.4rem 0.5rem; border: 1px solid #d1d5db;
-                    border-radius: 4px; font-size: 0.9rem" />
+             class="bnb-input"
+             style="flex: 1;" />
       <button type="button"
               data-action="invite-popup#addTag"
-              style="padding: 0.4rem 0.75rem; background: #4f46e5; color: white;
-                     border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem">
+              class="bnb-btn-ghost"
+              style="padding: 0.55rem 0.9rem; white-space: nowrap;">
         Add
       </button>
       <button type="button"
               data-action="invite-popup#open"
-              style="padding: 0.4rem 0.75rem; background: #e5e7eb; color: #374151;
-                     border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem">
-        Browse Friends
+              class="bnb-btn-ghost"
+              style="padding: 0.55rem 0.9rem; white-space: nowrap;">
+        Browse
       </button>
     </div>
   </div>
@@ -79,45 +73,53 @@
   <%# ── Friend-picker popup ── %>
   <div data-invite-popup-target="popup"
        data-action="click->invite-popup#backdropClose"
-       style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4);
-              align-items: center; justify-content: center; z-index: 50">
-    <div style="background: white; border-radius: 8px; padding: 1.5rem;
-                width: 360px; max-height: 70vh; overflow-y: auto">
+       style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+              align-items: center; justify-content: center; z-index: 50;">
+    <div style="background: #12141e; border: 1px solid rgba(255,255,255,0.1);
+                border-radius: 12px; padding: 1.5rem; width: 380px; max-height: 70vh; overflow-y: auto;">
 
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem">
-        <h3 style="margin: 0">Browse Friends</h3>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+        <h3 style="margin: 0; color: #EAECEF; font-size: 1rem; font-weight: 700;">Browse Friends</h3>
         <button type="button"
                 data-action="invite-popup#close"
                 aria-label="Close"
-                style="background: none; border: none; font-size: 1.25rem; cursor: pointer; line-height: 1">&times;</button>
+                style="background: none; border: none; font-size: 1.4rem; cursor: pointer;
+                       line-height: 1; color: #929AA5; transition: color 0.2s;"
+                onmouseover="this.style.color='#EAECEF'" onmouseout="this.style.color='#929AA5'">
+          &times;
+        </button>
       </div>
 
       <% if defined?(@friends) && @friends.any? %>
-        <ul style="list-style: none; margin: 0; padding: 0">
+        <ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem;">
           <% @friends.each do |friend| %>
-            <li style="margin-bottom: 0.5rem">
+            <li>
               <button type="button"
                       data-action="invite-popup#select"
                       data-value="<%= friend.email %>"
-                      style="width: 100%; text-align: left; padding: 0.5rem;
-                             border: 1px solid #ddd; border-radius: 4px;
-                             cursor: pointer; background: white">
-                <strong><%= friend.display_name %></strong>
-                <span style="color: gray; font-size: 0.85em; margin-left: 0.25rem"><%= friend.email %></span>
+                      style="width: 100%; text-align: left; padding: 0.65rem 0.75rem;
+                             border: 1px solid rgba(255,255,255,0.08); border-radius: 8px;
+                             cursor: pointer; background: rgba(255,255,255,0.04); color: #EAECEF;
+                             transition: border-color 0.2s, background 0.2s;"
+                      onmouseover="this.style.borderColor='rgba(240,185,11,0.3)'; this.style.background='rgba(240,185,11,0.06)'"
+                      onmouseout="this.style.borderColor='rgba(255,255,255,0.08)'; this.style.background='rgba(255,255,255,0.04)'">
+                <strong style="font-size: 0.875rem;"><%= friend.display_name %></strong>
+                <span style="color: #929AA5; font-size: 0.8rem; margin-left: 0.4rem;"><%= friend.email %></span>
               </button>
             </li>
           <% end %>
         </ul>
       <% else %>
-        <p style="color: gray; margin: 0">
+        <p style="color: #929AA5; margin: 0; font-size: 0.875rem;">
           No friends yet.
-          <%= link_to "Add friends", friendships_path %>
+          <%= link_to "Add friends", friendships_path, style: "color: #14B8A6; text-decoration: none;" %>
         </p>
       <% end %>
     </div>
   </div>
 
-  <div>
-    <%= form.submit %>
+  <div style="margin-top: 1.75rem; padding-top: 1.25rem; border-top: 1px solid rgba(255,255,255,0.07);">
+    <%= form.submit id: "new-league-submit", class: "bnb-btn-primary",
+        style: "width: 100%; padding: 0.85rem; font-size: 0.95rem; border-radius: 6px;" %>
   </div>
 <% end %>

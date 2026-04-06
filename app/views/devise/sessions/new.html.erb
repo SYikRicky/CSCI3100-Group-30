@@ -1,26 +1,53 @@
-<h2>Log in</h2>
+<div style="min-height: calc(100vh - 64px); display: flex; align-items: center; justify-content: center; padding: 2rem 1.5rem;">
+  <div style="width: 100%; max-width: 420px;">
 
-<%= form_for(resource, as: resource_name, url: session_path(resource_name)) do |f| %>
-  <div class="field">
-    <p><%= f.label :email %></p>
-    <p><%= f.email_field :email, autofocus: true, autocomplete: "email" %></p>
-  </div>
-
-  <div class="field">
-    <p><%= f.label :password %></p>
-    <p><%= f.password_field :password, autocomplete: "current-password" %></p>
-  </div>
-
-  <% if devise_mapping.rememberable? %>
-    <div class="field">
-      <p><%= f.check_box :remember_me %></p>
-      <p><%= f.label :remember_me %></p>
+    <%# Logo mark %>
+    <div style="text-align: center; margin-bottom: 2rem;">
+      <span style="background: #14B8A6; color: #181A20; font-weight: 900; font-size: 0.9rem;
+                   padding: 0.35rem 0.65rem; border-radius: 6px; letter-spacing: 0.05em;">MFL</span>
+      <h1 class="tw-font-custom" style="color: #EAECEF; font-size: 1.5rem; letter-spacing: 0.1em;
+                  text-transform: uppercase; margin: 1rem 0 0.3rem;">Log In</h1>
+      <p style="color: #929AA5; font-size: 0.82rem; margin: 0;">Welcome back to Mock Fund League</p>
     </div>
-  <% end %>
 
-  <div class="actions">
-    <%= f.submit "Log in" %>
+    <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+                border-radius: 12px; padding: 2rem;">
+
+      <%= form_for(resource, as: resource_name, url: session_path(resource_name)) do |f| %>
+
+        <div style="margin-bottom: 1.25rem;">
+          <%= f.label :email,
+              style: "display: block; color: #929AA5; font-size: 0.72rem; font-weight: 700;
+                      text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;" %>
+          <%= f.email_field :email, autofocus: true, autocomplete: "email", class: "bnb-input" %>
+        </div>
+
+        <div style="margin-bottom: 1.25rem;">
+          <%= f.label :password,
+              style: "display: block; color: #929AA5; font-size: 0.72rem; font-weight: 700;
+                      text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;" %>
+          <%= f.password_field :password, autocomplete: "current-password", class: "bnb-input" %>
+        </div>
+
+        <% if devise_mapping.rememberable? %>
+          <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.25rem;">
+            <%= f.check_box :remember_me, style: "width: 14px; height: 14px; accent-color: #14B8A6;" %>
+            <%= f.label :remember_me, style: "color: #929AA5; font-size: 0.82rem; cursor: pointer;" %>
+          </div>
+        <% end %>
+
+        <div style="margin-top: 1.5rem;">
+          <%= f.submit "Log In", class: "bnb-btn-primary",
+              style: "width: 100%; padding: 0.85rem; font-size: 0.95rem;" %>
+        </div>
+
+      <% end %>
+
+    </div>
+
+    <div style="text-align: center; margin-top: 1.25rem; display: flex; flex-direction: column; gap: 0.5rem;">
+      <%= render "devise/shared/links" %>
+    </div>
+
   </div>
-<% end %>
-
-<%= render "devise/shared/links" %>
+</div>

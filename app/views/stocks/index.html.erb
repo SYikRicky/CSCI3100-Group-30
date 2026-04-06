@@ -1,2 +1,86 @@
-<h1>Stocks#index</h1>
-<p>Find me in app/views/stocks/index.html.erb</p>
+<div style="max-width: 1280px; margin: 0 auto; padding: 2.5rem 1.5rem;">
+
+  <%# ── Page header ── %>
+  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem;">
+    <div>
+      <h1 class="tw-font-custom" style="color: #EAECEF; font-size: 1.75rem; letter-spacing: 0.1em;
+                  text-transform: uppercase; margin: 0 0 0.25rem;">Markets</h1>
+      <p style="color: #929AA5; font-size: 0.82rem; margin: 0;">
+        Browse stocks and view live candlestick charts.
+      </p>
+    </div>
+  </div>
+
+  <%# ── Market table ── %>
+  <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+              border-radius: 12px; overflow: hidden;">
+
+    <%# Table header %>
+    <div style="display: grid; grid-template-columns: 2rem 1fr 2fr 1fr; gap: 1rem;
+                padding: 0.75rem 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.07);">
+      <span style="color: #929AA5; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;">#</span>
+      <span style="color: #929AA5; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;">Symbol</span>
+      <span style="color: #929AA5; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;">Company</span>
+      <span style="color: #929AA5; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; text-align: right;">Chart</span>
+    </div>
+
+    <% if @stocks.any? %>
+      <% @stocks.each_with_index do |stock, i| %>
+        <div style="display: grid; grid-template-columns: 2rem 1fr 2fr 1fr; gap: 1rem;
+                    padding: 0.9rem 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.04);
+                    align-items: center; transition: background 0.15s;"
+             onmouseover="this.style.background='rgba(255,255,255,0.03)'"
+             onmouseout="this.style.background='transparent'">
+
+          <span style="color: #929AA5; font-size: 0.82rem;"><%= i + 1 %></span>
+
+          <div style="display: flex; align-items: center; gap: 0.6rem;">
+            <div style="width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+                        background: rgba(20,184,166,0.1); border: 1px solid rgba(20,184,166,0.2);
+                        display: flex; align-items: center; justify-content: center;
+                        font-size: 0.6rem; font-weight: 700; color: #14B8A6; overflow: hidden;">
+              <img src="<%= stock_logo_url(stock.ticker) %>"
+                   alt="<%= stock.ticker %>"
+                   style="width: 22px; height: 22px; object-fit: contain; border-radius: 3px;"
+                   onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+              <span style="display: none; width: 100%; height: 100%; align-items: center;
+                           justify-content: center; font-size: 0.6rem; font-weight: 700; color: #14B8A6;">
+                <%= stock.ticker.first(2).upcase %>
+              </span>
+            </div>
+            <span style="color: #EAECEF; font-size: 0.9rem; font-weight: 700;
+                         letter-spacing: 0.05em;"><%= stock.ticker %></span>
+          </div>
+
+          <% if stock_website_url(stock.ticker) %>
+            <%= link_to stock.company_name, stock_website_url(stock.ticker), target: "_blank", rel: "noopener noreferrer",
+                style: "color: #929AA5; font-size: 0.875rem; text-decoration: underline;
+                        text-decoration-color: rgba(147,154,165,0.4); text-underline-offset: 3px;
+                        transition: color 0.2s;",
+                onmouseover: "this.style.color='#EAECEF'",
+                onmouseout:  "this.style.color='#929AA5'" %>
+          <% else %>
+            <span style="color: #929AA5; font-size: 0.875rem;"><%= stock.company_name %></span>
+          <% end %>
+
+          <%# View chart link — turbo disabled so the chart script runs fresh %>
+          <div style="text-align: right;">
+            <%= link_to "View Chart →", stock_path(stock),
+                style: "color: #14B8A6; text-decoration: none; font-size: 0.82rem; font-weight: 600;
+                        transition: color 0.2s;",
+                data: { turbo: false },
+                onmouseover: "this.style.color='#0d9488'",
+                onmouseout:  "this.style.color='#14B8A6'" %>
+          </div>
+
+        </div>
+      <% end %>
+    <% else %>
+      <div style="padding: 4rem; text-align: center;">
+        <p style="color: #929AA5; font-size: 0.9rem; margin: 0;">No stocks available yet.</p>
+      </div>
+    <% end %>
+
+  </div>
+
+</div>

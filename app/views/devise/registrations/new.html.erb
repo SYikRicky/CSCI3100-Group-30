@@ -1,34 +1,68 @@
-<h2>Sign up</h2>
+<div style="min-height: calc(100vh - 64px); display: flex; align-items: center; justify-content: center; padding: 2rem 1.5rem;">
+  <div style="width: 100%; max-width: 460px;">
 
-<%= form_for(resource, as: resource_name, url: registration_path(resource_name)) do |f| %>
-  <%= render "devise/shared/error_messages", resource: resource %>
-  
-  <div class="field">
-    <%= f.label :display_name %><br />
-    <%= f.text_field :display_name, autofocus: true %>
+    <%# Logo mark %>
+    <div style="text-align: center; margin-bottom: 2rem;">
+      <span style="background: #14B8A6; color: #181A20; font-weight: 900; font-size: 0.9rem;
+                   padding: 0.35rem 0.65rem; border-radius: 6px; letter-spacing: 0.05em;">MFL</span>
+      <h1 class="tw-font-custom" style="color: #EAECEF; font-size: 1.5rem; letter-spacing: 0.1em;
+                  text-transform: uppercase; margin: 1rem 0 0.3rem;">Create Account</h1>
+      <p style="color: #929AA5; font-size: 0.82rem; margin: 0;">Start trading virtually — it's free</p>
+    </div>
+
+    <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+                border-radius: 12px; padding: 2rem;">
+
+      <%= form_for(resource, as: resource_name, url: registration_path(resource_name)) do |f| %>
+        <%= render "devise/shared/error_messages", resource: resource %>
+
+        <div style="margin-bottom: 1.25rem;">
+          <%= f.label :display_name, "Display Name",
+              style: "display: block; color: #929AA5; font-size: 0.72rem; font-weight: 700;
+                      text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;" %>
+          <%= f.text_field :display_name, autofocus: true, class: "bnb-input",
+              placeholder: "How others will see you" %>
+        </div>
+
+        <div style="margin-bottom: 1.25rem;">
+          <%= f.label :email,
+              style: "display: block; color: #929AA5; font-size: 0.72rem; font-weight: 700;
+                      text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;" %>
+          <%= f.email_field :email, autocomplete: "email", class: "bnb-input",
+              placeholder: "your@email.com" %>
+        </div>
+
+        <div style="margin-bottom: 1.25rem;">
+          <%= f.label :password,
+              style: "display: block; color: #929AA5; font-size: 0.72rem; font-weight: 700;
+                      text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;" %>
+          <% if @minimum_password_length %>
+            <p style="color: #929AA5; font-size: 0.72rem; margin: 0 0 0.35rem; opacity: 0.7;">
+              Minimum <%= @minimum_password_length %> characters
+            </p>
+          <% end %>
+          <%= f.password_field :password, autocomplete: "new-password", class: "bnb-input" %>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+          <%= f.label :password_confirmation, "Confirm Password",
+              style: "display: block; color: #929AA5; font-size: 0.72rem; font-weight: 700;
+                      text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;" %>
+          <%= f.password_field :password_confirmation, autocomplete: "new-password", class: "bnb-input" %>
+        </div>
+
+        <div style="margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid rgba(255,255,255,0.07);">
+          <%= f.submit "Create Account", class: "bnb-btn-primary",
+              style: "width: 100%; padding: 0.85rem; font-size: 0.95rem;" %>
+        </div>
+
+      <% end %>
+
+    </div>
+
+    <div style="text-align: center; margin-top: 1.25rem; display: flex; flex-direction: column; gap: 0.5rem;">
+      <%= render "devise/shared/links" %>
+    </div>
+
   </div>
-
-  <div class="field">
-    <p><%= f.label :email %></p>
-    <p><%= f.email_field :email, autofocus: true, autocomplete: "email" %></p>
-  </div>
-
-  <div class="field">
-    <p><%= f.label :password %></p>
-    <% if @minimum_password_length %>
-      <p><em>(<%= @minimum_password_length %> characters minimum)</em></p>
-    <% end %>
-    <p><%= f.password_field :password, autocomplete: "new-password" %></p>
-  </div>
-
-  <div class="field">
-    <p><%= f.label :password_confirmation %></p>
-    <p><%= f.password_field :password_confirmation, autocomplete: "new-password" %></p>
-  </div>
-
-  <div class="actions">
-    <%= f.submit "Sign up" %>
-  </div>
-<% end %>
-
-<%= render "devise/shared/links" %>
+</div>
