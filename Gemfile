@@ -84,3 +84,5 @@ gem "simplecov", "~> 0.22.0", group: :test
 gem "database_cleaner-active_record", "~> 2.2", group: :test
 gem "shoulda-matchers", "~> 7.0", group: :test
 gem "cucumber", "~> 10.2", group: :test
+
+gem "cssbundling-rails", "~> 1.4"

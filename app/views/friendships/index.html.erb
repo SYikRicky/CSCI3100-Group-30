@@ -1,45 +1,105 @@
 <% content_for :title, "Friends" %>
 
-<h1>Friends</h1>
+<div style="max-width: 800px; margin: 0 auto; padding: 2.5rem 1.5rem;">
 
-<%# Send friend request form %>
-<section>
-  <h2>Add a Friend</h2>
-  <%= form_with url: friendships_path, method: :post do |f| %>
-    <%= f.label :identifier, "Email or username" %>
-    <%= f.text_field :identifier, placeholder: "Email or display name", id: "identifier" %>
-    <%= f.submit "Send Friend Request" %>
+  <h1 class="tw-font-custom" style="color: #EAECEF; font-size: 1.75rem; letter-spacing: 0.1em;
+              text-transform: uppercase; margin: 0 0 2rem;">Friends</h1>
+
+  <%# ── Add a Friend ── %>
+  <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+              border-radius: 12px; padding: 1.5rem; margin-bottom: 1.25rem;">
+    <p style="color: #929AA5; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+              letter-spacing: 0.08em; margin: 0 0 0.75rem;">Add a Friend</p>
+    <%= form_with url: friendships_path, method: :post,
+        style: "display: flex; gap: 0.75rem; align-items: flex-end;" do |f| %>
+      <div style="flex: 1;">
+        <%= f.label :identifier, "Email or Display Name",
+            style: "display: block; color: #929AA5; font-size: 0.72rem; font-weight: 700;
+                    text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.35rem;" %>
+        <%= f.text_field :identifier, placeholder: "Enter email or username", id: "identifier",
+            class: "bnb-input" %>
+      </div>
+      <%= f.submit "Send Friend Request", class: "bnb-btn-primary",
+          style: "padding: 0.62rem 1.25rem; white-space: nowrap;" %>
+    <% end %>
+  </div>
+
+  <%# ── Pending incoming requests ── %>
+  <% if @pending_requests.any? %>
+    <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(240,185,11,0.15);
+                border-radius: 12px; padding: 1.5rem; margin-bottom: 1.25rem;">
+      <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem;">
+        <p style="color: #929AA5; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+                  letter-spacing: 0.08em; margin: 0;">Pending Requests</p>
+        <span style="background: rgba(240,185,11,0.15); color: #14B8A6; font-size: 0.7rem;
+                     font-weight: 700; padding: 0.1rem 0.5rem; border-radius: 20px;">
+          <%= @pending_requests.count %>
+        </span>
+      </div>
+      <ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem;">
+        <% @pending_requests.each do |fr| %>
+          <li id="friendship-<%= fr.id %>"
+              style="display: flex; align-items: center; gap: 0.75rem;
+                     padding: 0.75rem; background: rgba(255,255,255,0.03);
+                     border: 1px solid rgba(255,255,255,0.06); border-radius: 8px;">
+            <div style="width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+                        background: rgba(240,185,11,0.12); border: 1px solid rgba(240,185,11,0.2);
+                        display: flex; align-items: center; justify-content: center;
+                        color: #14B8A6; font-size: 0.8rem; font-weight: 700;">
+              <%= fr.user.display_name.first.upcase %>
+            </div>
+            <div style="flex: 1; min-width: 0;">
+              <p style="color: #EAECEF; font-size: 0.875rem; font-weight: 600; margin: 0;"><%= fr.user.display_name %></p>
+              <p style="color: #929AA5; font-size: 0.78rem; margin: 0;"><%= fr.user.email %></p>
+            </div>
+            <div style="display: flex; gap: 0.5rem; flex-shrink: 0;">
+              <%= button_to "Accept", friendship_path(fr), method: :patch,
+                  style: "padding: 0.4rem 1rem; background: rgba(46,189,133,0.12);
+                          color: #2EBD85; border: 1px solid rgba(46,189,133,0.25);
+                          border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 600;
+                          transition: background 0.2s;",
+                  onmouseover: "this.style.background='rgba(46,189,133,0.22)'"
+                  %>
+              <%= button_to "Decline", friendship_path(fr), method: :delete,
+                  style: "padding: 0.4rem 0.9rem; background: rgba(255,255,255,0.04);
+                          color: #929AA5; border: 1px solid rgba(255,255,255,0.1);
+                          border-radius: 6px; cursor: pointer; font-size: 0.8rem; transition: all 0.2s;",
+                  onmouseover: "this.style.background='rgba(246,70,93,0.12)'; this.style.color='#F6465D'; this.style.borderColor='rgba(246,70,93,0.25)'"
+                  %>
+            </div>
+          </li>
+        <% end %>
+      </ul>
+    </div>
   <% end %>
-</section>
 
-<%# Pending incoming requests %>
-<% if @pending_requests.any? %>
-  <section>
-    <h2>Pending Requests</h2>
-    <ul>
-      <% @pending_requests.each do |fr| %>
-        <li id="friendship-<%= fr.id %>">
-          <%= fr.user.display_name %> (<%= fr.user.email %>)
-          <%= button_to "Accept", friendship_path(fr), method: :patch %>
-          <%= button_to "Decline", friendship_path(fr), method: :delete %>
-        </li>
-      <% end %>
-    </ul>
-  </section>
-<% end %>
+  <%# ── My Friends ── %>
+  <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+              border-radius: 12px; padding: 1.5rem;">
+    <p style="color: #929AA5; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+              letter-spacing: 0.08em; margin: 0 0 1rem;">My Friends</p>
+    <% if @friends.any? %>
+      <ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem;">
+        <% @friends.each do |friend| %>
+          <li style="display: flex; align-items: center; gap: 0.75rem;
+                     padding: 0.75rem; background: rgba(255,255,255,0.03);
+                     border: 1px solid rgba(255,255,255,0.06); border-radius: 8px;">
+            <div style="width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+                        background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.25);
+                        display: flex; align-items: center; justify-content: center;
+                        color: #818cf8; font-size: 0.8rem; font-weight: 700;">
+              <%= friend.display_name.first.upcase %>
+            </div>
+            <div>
+              <p style="color: #EAECEF; font-size: 0.875rem; font-weight: 600; margin: 0;"><%= friend.display_name %></p>
+              <p style="color: #929AA5; font-size: 0.78rem; margin: 0;"><%= friend.email %></p>
+            </div>
+          </li>
+        <% end %>
+      </ul>
+    <% else %>
+      <p style="color: #929AA5; font-size: 0.875rem; margin: 0;">No friends yet. Add some above!</p>
+    <% end %>
+  </div>
 
-<%# Accepted friends %>
-<section>
-  <h2>My Friends</h2>
-  <% if @friends.any? %>
-    <ul>
-      <% @friends.each do |friend| %>
-        <li>
-          <%= friend.display_name %> (<%= friend.email %>)
-        </li>
-      <% end %>
-    </ul>
-  <% else %>
-    <p>No friends yet. Add some above!</p>
-  <% end %>
-</section>
+</div>

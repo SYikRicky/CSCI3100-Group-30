@@ -1,0 +1,250 @@
+<% content_for :title, "#{@stock.ticker} — #{@stock.company_name}" %>
+
+<%# ── Info bar (fixed below navbar) ── %>
+<div style="position: fixed; top: 64px; left: 0; right: 0; z-index: 98;
+            background: rgba(13,15,23,0.97); backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255,255,255,0.07);
+            height: 56px; display: flex; align-items: center; padding: 0 1.5rem; gap: 1.5rem;">
+
+  <%= link_to "← Markets", stocks_path,
+      style: "color: #929AA5; font-size: 0.78rem; text-decoration: none; flex-shrink: 0; transition: color 0.2s;",
+      onmouseover: "this.style.color='#EAECEF'", onmouseout: "this.style.color='#929AA5'" %>
+
+  <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.1); flex-shrink: 0;"></div>
+
+  <div style="width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+              background: rgba(20,184,166,0.1); border: 1px solid rgba(20,184,166,0.2);
+              display: flex; align-items: center; justify-content: center; overflow: hidden;">
+    <img src="<%= stock_logo_url(@stock.ticker) %>"
+         alt="<%= @stock.ticker %>"
+         style="width: 20px; height: 20px; object-fit: contain;"
+         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+    <span style="display: none; width: 100%; height: 100%; align-items: center;
+                 justify-content: center; font-size: 0.55rem; font-weight: 700; color: #14B8A6;">
+      <%= @stock.ticker.first(2).upcase %>
+    </span>
+  </div>
+
+  <div style="display: flex; align-items: baseline; gap: 0.5rem; flex-shrink: 0;">
+    <span class="tw-font-custom" style="color: #EAECEF; font-size: 1rem; letter-spacing: 0.08em;">
+      <%= @stock.ticker %>
+    </span>
+    <span style="color: #929AA5; font-size: 0.78rem;"><%= @stock.company_name %></span>
+  </div>
+
+  <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.1); flex-shrink: 0;"></div>
+
+  <div style="display: flex; align-items: baseline; gap: 0.5rem; flex-shrink: 0;">
+    <span id="live-price" style="color: #EAECEF; font-size: 1.1rem; font-weight: 700;">
+      <% if @stock.last_price %>
+        $<%= format("%.2f", @stock.last_price.to_f) %>
+      <% else %>
+        —
+      <% end %>
+    </span>
+    <span id="price-change" style="font-size: 0.78rem; font-weight: 600;"></span>
+    <span style="color: #929AA5; font-size: 0.7rem;">USD</span>
+  </div>
+
+  <div style="margin-left: auto; display: flex; align-items: center; gap: 1.25rem; flex-shrink: 0;">
+    <span style="display: flex; align-items: center; gap: 0.35rem; font-size: 0.75rem; color: #929AA5;">
+      <span style="width: 8px; height: 8px; border-radius: 2px; background: #2EBD85; display: inline-block;"></span>
+      Bullish
+    </span>
+    <span style="display: flex; align-items: center; gap: 0.35rem; font-size: 0.75rem; color: #929AA5;">
+      <span style="width: 8px; height: 8px; border-radius: 2px; background: #F6465D; display: inline-block;"></span>
+      Bearish
+    </span>
+    <span style="background: rgba(20,184,166,0.12); color: #14B8A6; font-size: 0.68rem;
+                 font-weight: 700; padding: 0.12rem 0.5rem; border-radius: 20px; letter-spacing: 0.05em;">● LIVE</span>
+    <span style="color: #929AA5; font-size: 0.68rem; opacity: 0.5;">Simulated · 1min K</span>
+  </div>
+
+</div>
+
+<%# ── Full-screen chart (fills everything below info bar) ── %>
+<div id="chart-container"
+     style="position: fixed; top: 120px; left: 0; right: 0; bottom: 0; z-index: 1;"></div>
+
+<script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+
+<script>
+(function () {
+  const historicalData  = <%= raw @chart_data %>;
+  const INITIAL_COUNT   = 50;
+  const STEPS           = 60;
+  const TICK_MS         = 1000;
+  const CANDLE_GAP_MS   = 0;
+  const CANDLE_TOTAL_MS = (STEPS * TICK_MS) + CANDLE_GAP_MS;
+
+  const serverStartTime = <%= Rails.application.config.server_start_time.to_i * 1000 %>;
+
+  const livePriceEl  = document.getElementById('live-price');
+  const priceChgEl   = document.getElementById('price-change');
+
+  function updatePriceDisplay(currentClose, openPrice) {
+    if (!livePriceEl) return;
+    livePriceEl.textContent = '$' + currentClose.toFixed(2);
+    if (priceChgEl && openPrice) {
+      const chg    = currentClose - openPrice;
+      const chgPct = (chg / openPrice) * 100;
+      const sign   = chg >= 0 ? '+' : '';
+      priceChgEl.textContent    = sign + chg.toFixed(2) + ' (' + sign + chgPct.toFixed(2) + '%)';
+      priceChgEl.style.color    = chg >= 0 ? '#2EBD85' : '#F6465D';
+    }
+  }
+
+  function initChart() {
+    const container = document.getElementById('chart-container');
+    if (!container || typeof LightweightCharts === 'undefined') return;
+
+    if (container._lwcChart) {
+      try { container._lwcChart.remove(); } catch (_) {}
+    }
+
+    const chart = LightweightCharts.createChart(container, {
+      layout: {
+        background: { color: '#0d0f17' },
+        textColor: '#929AA5',
+        fontFamily: "'Inter', 'Segoe UI', sans-serif",
+      },
+      grid: {
+        vertLines: { color: 'rgba(255,255,255,0.04)' },
+        horzLines: { color: 'rgba(255,255,255,0.04)' },
+      },
+      crosshair: {
+        mode: LightweightCharts.CrosshairMode.Normal,
+        vertLine: { color: 'rgba(20,184,166,0.4)', labelBackgroundColor: '#14B8A6' },
+        horzLine: { color: 'rgba(20,184,166,0.4)', labelBackgroundColor: '#14B8A6' },
+      },
+      rightPriceScale: {
+        borderColor: 'rgba(255,255,255,0.08)',
+        scaleMargins: { top: 0.06, bottom: 0.06 },
+      },
+      timeScale: {
+        borderColor: 'rgba(255,255,255,0.08)',
+        timeVisible: true,
+        secondsVisible: false,
+      },
+      width:  container.clientWidth,
+      height: container.clientHeight,
+    });
+
+    container._lwcChart = chart;
+
+    const candleSeries = chart.addCandlestickSeries({
+      upColor:        '#2EBD85',
+      downColor:      '#F6465D',
+      borderVisible:  false,
+      wickUpColor:    '#2EBD85',
+      wickDownColor:  '#F6465D',
+    });
+
+    const elapsed    = Date.now() - serverStartTime;
+    const skipCount  = Math.floor(elapsed / CANDLE_TOTAL_MS);
+    const startIndex = Math.min(INITIAL_COUNT + skipCount, historicalData.length - 1);
+
+    candleSeries.setData(historicalData.slice(0, startIndex));
+    chart.timeScale().fitContent();
+
+    if (startIndex > 0) {
+      const lastCandle = historicalData[startIndex - 1];
+      updatePriceDisplay(lastCandle.close, lastCandle.open);
+    }
+
+   function generateTicks(candle, steps) {
+  const { open, high, low, close } = candle;
+  const range = high - low || 0.01;
+
+  const p1 = Math.floor(steps * 0.3);
+  const p2 = Math.floor(steps * 0.4);
+  const p3 = steps - p1 - p2; // 確保三段加起來 = steps
+
+  const hitHighFirst = Math.random() > 0.5;
+  const basePath = [];
+
+  if (hitHighFirst) {
+    for (let i = 1; i <= p1; i++)
+      basePath.push(open + (high - open) * (i / p1));
+    for (let i = 1; i <= p2; i++)
+      basePath.push(high + (low - high) * (i / p2));
+    for (let i = 1; i <= p3; i++)
+      basePath.push(low + (close - low) * (i / p3));
+  } else {
+    for (let i = 1; i <= p1; i++)
+      basePath.push(open + (low - open) * (i / p1));
+    for (let i = 1; i <= p2; i++)
+      basePath.push(low + (high - low) * (i / p2));
+    for (let i = 1; i <= p3; i++)
+      basePath.push(high + (close - high) * (i / p3));
+  }
+
+  const ticks = [open];
+
+  for (let i = 0; i < basePath.length; i++) {
+    const isLast = i === basePath.length - 1;
+
+    // 最後一個 tick 不加 shock，保證結尾是 close
+    if (!isLast && Math.random() < 0.05) {
+      const shockSize = range * (0.05 + Math.random() * 0.1); // 縮小 shock 幅度避免卡邊
+      const direction = Math.random() < 0.5 ? 1 : -1;
+      const shockedPrice = basePath[i] + direction * shockSize;
+      ticks.push(Math.min(high, Math.max(low, shockedPrice)));
+    } else {
+      ticks.push(basePath[i]);
+    }
+  }
+
+  return ticks;
+}
+
+    function playCandle(index, onDone) {
+      if (index >= historicalData.length) return;
+      const candle = historicalData[index];
+      const ticks  = generateTicks(candle, STEPS);
+      let tickIndex = 0;
+      const tickInterval = setInterval(() => {
+        const currentClose = ticks[tickIndex];
+        candleSeries.update({
+          time:  candle.time,
+          open:  candle.open,
+          high:  Math.max(candle.open, currentClose),
+          low:   Math.min(candle.open, currentClose),
+          close: currentClose,
+        });
+        updatePriceDisplay(currentClose, candle.open);
+        tickIndex++;
+        if (tickIndex >= ticks.length) {
+          clearInterval(tickInterval);
+          candleSeries.update(candle);
+          setTimeout(onDone, CANDLE_GAP_MS);
+        }
+      }, TICK_MS);
+    }
+
+    let currentIndex = startIndex;
+    function playNext() {
+      if (currentIndex >= historicalData.length) return;
+      playCandle(currentIndex, () => {
+        currentIndex++;
+        playNext();
+      });
+    }
+    playNext();
+
+    window.addEventListener('resize', () => {
+      chart.applyOptions({
+        width:  container.clientWidth,
+        height: container.clientHeight,
+      });
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initChart);
+  } else {
+    initChart();
+  }
+  document.addEventListener('turbo:load', initChart);
+})();
+</script>
