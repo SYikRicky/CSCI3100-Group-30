@@ -1,6 +1,8 @@
 require 'rails_helper'
 
 RSpec.describe "Stocks", type: :request do
+  let(:user) { create(:user) }
+  before { sign_in user }
   describe "GET /index" do
     it "returns http success" do
       get "/stocks/index"
