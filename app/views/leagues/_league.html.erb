@@ -1,32 +1,68 @@
-<div id="<%= dom_id league %>">
+<% status_color = case league.status
+                 when "active"   then "#2EBD85"
+                 when "pending"  then "#14B8A6"
+                 when "finished" then "#929AA5"
+                 else "#929AA5"
+                 end %>
+
+<div id="<%= dom_id league %>"
+     style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px; padding: 1.5rem; transition: background 0.2s, border-color 0.2s;
+            display: flex; flex-direction: column; gap: 1rem; cursor: pointer;"
+     onmouseover="this.style.background='rgba(255,255,255,0.07)'; this.style.borderColor='rgba(240,185,11,0.2)'"
+     onmouseout="this.style.background='rgba(255,255,255,0.04)'; this.style.borderColor='rgba(255,255,255,0.08)'">
+
+  <%# Status badge + name %>
   <div>
-    <strong>Name:</strong>
-    <%= league.name %>
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+      <span style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+                   letter-spacing: 0.1em; color: <%= status_color %>;
+                   background: <%= status_color %>20; padding: 0.2rem 0.6rem; border-radius: 4px;">
+        <%= league.status.capitalize %>
+      </span>
+    </div>
+    <h3 style="color: #EAECEF; font-size: 1.05rem; font-weight: 700; margin: 0;
+               white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+      <%= league.name %>
+    </h3>
+    <% if league.description.present? %>
+      <p style="color: #929AA5; font-size: 0.8rem; margin: 0.3rem 0 0;
+                white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+        <%= league.description %>
+      </p>
+    <% end %>
   </div>
 
-  <div>
-    <strong>Description:</strong>
-    <%= league.description %>
+  <%# Stats row %>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;
+              padding-top: 0.75rem; border-top: 1px solid rgba(255,255,255,0.06);">
+    <div>
+      <p style="color: #929AA5; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; margin: 0 0 0.2rem;">
+        Starting Capital
+      </p>
+      <p style="color: #14B8A6; font-size: 0.95rem; font-weight: 700; margin: 0;">
+        $<%= number_with_delimiter(league.starting_capital.to_i) %>
+      </p>
+    </div>
+    <div>
+      <p style="color: #929AA5; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; margin: 0 0 0.2rem;">
+        Duration
+      </p>
+      <p style="color: #EAECEF; font-size: 0.82rem; font-weight: 600; margin: 0;">
+        <%= league.starts_at.strftime("%b %d") %> – <%= league.ends_at.strftime("%b %d, %Y") %>
+      </p>
+    </div>
   </div>
 
-  <div>
-    <strong>Starting capital:</strong>
-    <%= league.starting_capital %>
-  </div>
-
-  <div>
-    <strong>Starts at:</strong>
-    <%= league.starts_at %>
-  </div>
-
-  <div>
-    <strong>Ends at:</strong>
-    <%= league.ends_at %>
-  </div>
-
-  <div>
-    <strong>Status:</strong>
-    <%= league.status %>
+  <%# View button %>
+  <div style="margin-top: auto;">
+    <%= link_to "Open League →", league,
+        style: "display: block; text-align: center; background: rgba(240,185,11,0.1);
+                border: 1px solid rgba(240,185,11,0.25); color: #14B8A6; text-decoration: none;
+                border-radius: 6px; padding: 0.6rem; font-size: 0.85rem; font-weight: 600;
+                transition: background 0.2s;",
+        onmouseover: "this.style.background='rgba(240,185,11,0.2)'",
+        onmouseout: "this.style.background='rgba(240,185,11,0.1)'" %>
   </div>
 
 </div>
