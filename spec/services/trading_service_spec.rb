@@ -38,7 +38,7 @@ RSpec.describe TradingService, type: :service do
           executed_at: executed_at
         )
 
-        expect { service.call }.to raise_error(TradingService::Error, /insufficient cash/)
+        expect { service.call }.to raise_error(TradingService::Error, /insufficient cash/i)
       end
     end
 

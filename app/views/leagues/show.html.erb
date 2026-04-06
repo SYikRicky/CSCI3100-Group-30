@@ -6,6 +6,12 @@
   <p style="color: #6b7280; font-size: 0.9rem; margin: 0">
     <%= @league.description.presence || "No description." %>
   </p>
+
+  <% if (portfolio = current_user.portfolios.find_by(league: @league)) %>
+    <div style="margin-top: 0.75rem">
+      <%= link_to "View My Portfolio", portfolio_path(portfolio) %>
+    </div>
+  <% end %>
 </div>
 
 <%# ── Right sidebar ── %>
