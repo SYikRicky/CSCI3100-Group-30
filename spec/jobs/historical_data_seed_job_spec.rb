@@ -5,10 +5,10 @@ RSpec.describe HistoricalDataSeedJob, type: :job do
   let(:start_date) { Date.new(2011, 1, 1) }
   let(:end_date) { Date.new(2011, 1, 3) }
 
-  let(:service_double) { instance_double(TiingoService) }
+  let(:service_double) { instance_double(AlpacaService) }
 
   before do
-    allow(TiingoService).to receive(:new).and_return(service_double)
+    allow(AlpacaService).to receive(:new).and_return(service_double)
     allow(service_double).to receive(:fetch_historical_prices).and_return(
       [
         {
