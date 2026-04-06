@@ -131,7 +131,7 @@
         <% if current_user == @league.owner %>
           <div style="display: flex; flex-direction: column; gap: 0.15rem;">
             <dt style="font-weight: 700; color: #929AA5; font-size: 0.7rem;
-                       text-transform: uppercase; letter-spacing: 0.08em;">Invite Code</dt>
+                       text-transform: uppercase; letter-spacing: 0.08em;">Invite code</dt>
             <dd style="margin: 0; color: #14B8A6; font-family: monospace; font-size: 1rem; font-weight: 700;
                        letter-spacing: 0.1em;"><%= @league.invite_code %></dd>
           </div>
@@ -140,7 +140,7 @@
 
       <% if current_user == @league.owner %>
         <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.08);">
-          <%= button_to "Delete League", @league, method: :delete,
+          <%= button_to "Destroy League", @league, method: :delete,
                 data: { turbo_confirm: "Are you sure? This cannot be undone." },
                 style: "width: 100%; padding: 0.5rem; background: rgba(246,70,93,0.12);
                         color: #F6465D; border: 1px solid rgba(246,70,93,0.25); border-radius: 6px;

@@ -16,9 +16,9 @@
   <% [
     { field: :name,             label: "League Name",       type: :text_field },
     { field: :description,      label: "Description",       type: :text_field },
-    { field: :starting_capital, label: "Starting Capital ($)", type: :text_field },
-    { field: :starts_at,        label: "Starts At",         type: :datetime_local_field },
-    { field: :ends_at,          label: "Ends At",           type: :datetime_local_field },
+    { field: :starting_capital, label: "Starting capital", type: :text_field },
+    { field: :starts_at,        label: "Starts at",         type: :datetime_local_field },
+    { field: :ends_at,          label: "Ends at",           type: :datetime_local_field },
   ].each do |f| %>
     <div style="margin-bottom: 1.25rem;">
       <%= form.label f[:field], f[:label],

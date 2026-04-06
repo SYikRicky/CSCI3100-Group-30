@@ -49,21 +49,20 @@
   <body class="tw-bg-gradient-to-br tw-from-indigo-950 tw-via-slate-950 tw-to-black tw-min-h-screen" style="color: #EAECEF; font-family: Arial, sans-serif;">
 
     <%# ── Binance-style top navigation ── %>
-    <nav style="position: fixed; top: 0; left: 0; right: 0; z-index: 999;
+    <nav data-testid="main-nav"
+         style="position: fixed; top: 0; left: 0; right: 0; z-index: 999;
                 background: rgba(15,17,26,0.85); backdrop-filter: blur(16px);
                 border-bottom: 1px solid rgba(255,255,255,0.07); height: 64px;
                 display: flex; align-items: center;">
       <div style="max-width: 1280px; margin: 0 auto; padding: 0 1.5rem;
                   width: 100%; display: flex; align-items: center; gap: 2rem;">
 
-        <%# Logo %>
         <%= link_to root_path, style: "display: flex; align-items: center; gap: 0.6rem; text-decoration: none; flex-shrink: 0;" do %>
           <%= image_tag "logo.png", alt: "MFL Logo",
               style: "width: 36px; height: 36px; object-fit: contain;" %>
           <span class="tw-font-custom" style="color: #EAECEF; font-size: 1rem; letter-spacing: 0.1em;">Mock Fund League</span>
         <% end %>
 
-        <%# Nav links %>
         <% if user_signed_in? %>
           <div style="display: flex; align-items: center; gap: 0.25rem; flex: 1;">
             <%= link_to "Markets", stocks_path,
@@ -83,12 +82,73 @@
           <div style="flex: 1;"></div>
         <% end %>
 
-        <%# Right side: auth / user %>
-        <div style="display: flex; align-items: center; gap: 0.75rem; flex-shrink: 0;">
+        <div style="display: flex; align-items: center; gap: 0.75rem; flex-shrink: 0; position: relative;">
           <% if user_signed_in? %>
-            <span style="color: #929AA5; font-size: 0.8rem;">
-              <%= current_user.display_name %>
-            </span>
+
+            <%# Friend panel button %>
+            <button data-testid="friend-panel-btn"
+                    onclick="var p=document.getElementById('friend-panel');p.style.display=p.style.display==='none'?'block':'none'"
+                    style="background: none; border: none; cursor: pointer; color: #929AA5;
+                           font-size: 0.8rem; padding: 0.4rem 0.6rem; border-radius: 4px; transition: color 0.2s;"
+                    onmouseover="this.style.color='#EAECEF'" onmouseout="this.style.color='#929AA5'">
+              Friends
+            </button>
+
+            <%# Friend panel dropdown %>
+            <div id="friend-panel" data-testid="friend-panel"
+                 style="display: none; position: absolute; top: 48px; right: 120px; z-index: 1000;
+                        background: #12141e; border: 1px solid rgba(255,255,255,0.1);
+                        border-radius: 10px; padding: 1rem; min-width: 200px; max-height: 300px; overflow-y: auto;">
+              <p style="color: #929AA5; font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+                        letter-spacing: 0.08em; margin: 0 0 0.75rem;">Friends</p>
+              <% if current_user.friends.any? %>
+                <% current_user.friends.each do |friend| %>
+                  <div style="padding: 0.4rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+                              font-size: 0.82rem; color: #EAECEF;">
+                    <%= friend.email %>
+                  </div>
+                <% end %>
+              <% else %>
+                <p style="color: #929AA5; font-size: 0.82rem; margin: 0;">No friends yet.</p>
+              <% end %>
+            </div>
+
+            <%# Mailbox button %>
+            <button data-testid="mailbox-btn"
+                    onclick="var d=document.getElementById('mailbox-dropdown');d.style.display=d.style.display==='none'?'block':'none'"
+                    style="background: none; border: none; cursor: pointer; color: #929AA5;
+                           font-size: 1rem; padding: 0.4rem 0.5rem; border-radius: 4px;
+                           position: relative; transition: color 0.2s;"
+                    onmouseover="this.style.color='#EAECEF'" onmouseout="this.style.color='#929AA5'">
+              ✉
+              <% if @notifications&.any? %>
+                <span style="position: absolute; top: 2px; right: 2px; width: 7px; height: 7px;
+                             background: #F6465D; border-radius: 50%; display: block;"></span>
+              <% end %>
+            </button>
+
+            <%# Mailbox dropdown %>
+            <div id="mailbox-dropdown" data-testid="mailbox-dropdown"
+                 style="display: none; position: absolute; top: 48px; right: 60px; z-index: 1000;
+                        background: #12141e; border: 1px solid rgba(255,255,255,0.1);
+                        border-radius: 10px; padding: 1rem; min-width: 280px; max-height: 360px; overflow-y: auto;">
+              <p style="color: #929AA5; font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+                        letter-spacing: 0.08em; margin: 0 0 0.75rem;">Notifications</p>
+              <% if @notifications&.any? %>
+                <% @notifications.each do |n| %>
+                  <div style="padding: 0.6rem 0; border-bottom: 1px solid rgba(255,255,255,0.06);">
+                    <p style="color: #EAECEF; font-size: 0.82rem; font-weight: 600; margin: 0 0 0.2rem;">
+                      <%= n.title %>
+                    </p>
+                    <p style="color: #929AA5; font-size: 0.78rem; margin: 0;"><%= n.body %></p>
+                  </div>
+                <% end %>
+              <% else %>
+                <p style="color: #929AA5; font-size: 0.82rem; margin: 0;">No notifications</p>
+              <% end %>
+            </div>
+
+            <span style="color: #929AA5; font-size: 0.8rem;"><%= current_user.display_name %></span>
             <%= link_to "Log Out", destroy_user_session_path,
                 data: { turbo_method: :delete },
                 class: "bnb-btn-ghost", style: "font-size: 0.8rem; padding: 0.4rem 0.9rem;" %>

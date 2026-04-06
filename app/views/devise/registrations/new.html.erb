@@ -17,7 +17,7 @@
         <%= render "devise/shared/error_messages", resource: resource %>
 
         <div style="margin-bottom: 1.25rem;">
-          <%= f.label :display_name, "Display Name",
+          <%= f.label :display_name, "Display name",
               style: "display: block; color: #929AA5; font-size: 0.72rem; font-weight: 700;
                       text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;" %>
           <%= f.text_field :display_name, autofocus: true, class: "bnb-input",
@@ -45,14 +45,14 @@
         </div>
 
         <div style="margin-bottom: 1.5rem;">
-          <%= f.label :password_confirmation, "Confirm Password",
+          <%= f.label :password_confirmation, "Password confirmation",
               style: "display: block; color: #929AA5; font-size: 0.72rem; font-weight: 700;
                       text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;" %>
           <%= f.password_field :password_confirmation, autocomplete: "new-password", class: "bnb-input" %>
         </div>
 
         <div style="margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid rgba(255,255,255,0.07);">
-          <%= f.submit "Create Account", class: "bnb-btn-primary",
+          <%= f.submit "Sign up", class: "bnb-btn-primary",
               style: "width: 100%; padding: 0.85rem; font-size: 0.95rem;" %>
         </div>
 
