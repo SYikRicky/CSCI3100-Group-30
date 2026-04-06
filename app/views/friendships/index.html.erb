@@ -1,0 +1,45 @@
+<% content_for :title, "Friends" %>
+
+<h1>Friends</h1>
+
+<%# Send friend request form %>
+<section>
+  <h2>Add a Friend</h2>
+  <%= form_with url: friendships_path, method: :post do |f| %>
+    <%= f.label :identifier, "Email or username" %>
+    <%= f.text_field :identifier, placeholder: "Email or display name", id: "identifier" %>
+    <%= f.submit "Send Friend Request" %>
+  <% end %>
+</section>
+
+<%# Pending incoming requests %>
+<% if @pending_requests.any? %>
+  <section>
+    <h2>Pending Requests</h2>
+    <ul>
+      <% @pending_requests.each do |fr| %>
+        <li id="friendship-<%= fr.id %>">
+          <%= fr.user.display_name %> (<%= fr.user.email %>)
+          <%= button_to "Accept", friendship_path(fr), method: :patch %>
+          <%= button_to "Decline", friendship_path(fr), method: :delete %>
+        </li>
+      <% end %>
+    </ul>
+  </section>
+<% end %>
+
+<%# Accepted friends %>
+<section>
+  <h2>My Friends</h2>
+  <% if @friends.any? %>
+    <ul>
+      <% @friends.each do |friend| %>
+        <li>
+          <%= friend.display_name %> (<%= friend.email %>)
+        </li>
+      <% end %>
+    </ul>
+  <% else %>
+    <p>No friends yet. Add some above!</p>
+  <% end %>
+</section>
