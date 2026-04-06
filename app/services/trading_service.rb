@@ -13,6 +13,8 @@ class TradingService
   def call
     validate_inputs!
 
+    trade = nil
+
     ActiveRecord::Base.transaction do
       if action == "buy"
         process_buy!
@@ -29,8 +31,10 @@ class TradingService
       )
 
       PortfolioValuationService.new(portfolio: portfolio, valued_at: executed_at).call
-      trade
     end
+
+    TradeMailer.confirmation(trade).deliver_later
+    trade
   end
 
   private
