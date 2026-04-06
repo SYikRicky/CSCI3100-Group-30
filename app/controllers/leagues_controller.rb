@@ -124,5 +124,6 @@ class LeaguesController < ApplicationController
       title: "You've been invited to #{@league.name}",
       body:  "#{current_user.display_name} has invited you to join the league \"#{@league.name}\"."
     )
+    LeagueMailer.invite(invitee, @league).deliver_later
   end
 end
