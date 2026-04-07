@@ -149,9 +149,8 @@
             </div>
 
             <span style="color: #929AA5; font-size: 0.8rem;"><%= current_user.display_name %></span>
-            <%= link_to "Log Out", destroy_user_session_path,
-                data: { turbo_method: :delete },
-                class: "bnb-btn-ghost", style: "font-size: 0.8rem; padding: 0.4rem 0.9rem;" %>
+            <%= button_to "Log Out", destroy_user_session_path, method: :delete,
+                class: "bnb-btn-ghost", style: "font-size: 0.8rem; padding: 0.4rem 0.9rem; border: none; cursor: pointer;" %>
           <% else %>
             <%= link_to "Log In", new_user_session_path, class: "bnb-btn-ghost" %>
             <%= link_to "Get Started", new_user_registration_path, class: "bnb-btn-primary" %>

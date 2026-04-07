@@ -1,25 +1,52 @@
 class TradingService
   class Error < StandardError; end
 
-  def initialize(portfolio:, stock:, action:, quantity:, executed_at: Time.current)
+  def initialize(portfolio:, stock:, action:, quantity:, order_type: "market",
+                 limit_price: nil, stop_price: nil, executed_at: Time.current)
     @portfolio = portfolio
     @stock = stock
     @action = action.to_s
     @quantity = BigDecimal(quantity.to_s)
     @market_price = BigDecimal(stock.last_price.to_s)
+    @order_type = order_type.to_s
+    @limit_price = limit_price ? BigDecimal(limit_price.to_s) : nil
+    @stop_price = stop_price ? BigDecimal(stop_price.to_s) : nil
     @executed_at = executed_at
   end
 
   def call
     validate_inputs!
 
+    if order_type == "market"
+      execute_market_order!
+    else
+      place_pending_order!
+    end
+  end
+
+  private
+
+  attr_reader :portfolio, :stock, :action, :quantity, :market_price,
+              :order_type, :limit_price, :stop_price, :executed_at
+
+  def validate_inputs!
+    raise Error, "action must be buy or sell" unless %w[buy sell].include?(action)
+    raise Error, "quantity must be greater than 0" unless quantity.positive?
+    raise Error, "market price unavailable" unless stock.last_price.present?
+    raise Error, "market price must be greater than 0" unless market_price.positive?
+    raise Error, "order type must be market, limit, or stop" unless %w[market limit stop].include?(order_type)
+    raise Error, "limit price required for limit orders" if order_type == "limit" && limit_price.nil?
+    raise Error, "stop price required for stop orders" if order_type == "stop" && stop_price.nil?
+  end
+
+  def execute_market_order!
     trade = nil
 
     ActiveRecord::Base.transaction do
       if action == "buy"
-        process_buy!
+        process_buy!(market_price)
       else
-        process_sell!
+        process_sell!(market_price)
       end
 
       trade = portfolio.trades.create!(
@@ -27,7 +54,9 @@ class TradingService
         action: action,
         quantity: quantity,
         price_at_trade: market_price,
-        executed_at: executed_at
+        executed_at: executed_at,
+        order_type: "market",
+        status: "filled"
       )
 
       PortfolioValuationService.new(portfolio: portfolio, valued_at: executed_at).call
@@ -37,19 +66,31 @@ class TradingService
     trade
   end
 
-  private
+  def place_pending_order!
+    # Validate the user could plausibly fill this order
+    if action == "buy"
+      price = order_type == "limit" ? limit_price : stop_price
+      cost = quantity * price
+      raise Error, "Insufficient cash balance for this order" if portfolio.cash_balance.to_d < cost
+    else
+      holding = portfolio.holdings.find_by(stock: stock)
+      raise Error, "no holdings found for #{stock.ticker}" unless holding
+      raise Error, "insufficient shares to sell" if holding.quantity.to_d < quantity
+    end
 
-  attr_reader :portfolio, :stock, :action, :quantity, :market_price, :executed_at
-
-  def validate_inputs!
-    raise Error, "action must be buy or sell" unless %w[buy sell].include?(action)
-    raise Error, "quantity must be greater than 0" unless quantity.positive?
-    raise Error, "market price unavailable" unless stock.last_price.present?
-    raise Error, "market price must be greater than 0" unless market_price.positive?
+    portfolio.trades.create!(
+      stock: stock,
+      action: action,
+      quantity: quantity,
+      order_type: order_type,
+      limit_price: limit_price,
+      stop_price: stop_price,
+      status: "pending"
+    )
   end
 
-  def process_buy!
-    cost = quantity * market_price
+  def process_buy!(price)
+    cost = quantity * price
     raise Error, "Insufficient cash balance" if portfolio.cash_balance.to_d < cost
 
     portfolio.update!(cash_balance: portfolio.cash_balance.to_d - cost)
@@ -63,12 +104,12 @@ class TradingService
     holding.update!(quantity: new_quantity, average_cost: new_average_cost)
   end
 
-  def process_sell!
+  def process_sell!(price)
     holding = portfolio.holdings.find_by(stock: stock)
     raise Error, "no holdings found for #{stock.ticker}" unless holding
     raise Error, "insufficient shares to sell" if holding.quantity.to_d < quantity
 
-    proceeds = quantity * market_price
+    proceeds = quantity * price
     portfolio.update!(cash_balance: portfolio.cash_balance.to_d + proceeds)
 
     remaining_quantity = holding.quantity.to_d - quantity

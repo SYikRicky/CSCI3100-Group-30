@@ -3,7 +3,9 @@ Rails.application.routes.draw do
   get "stocks/show"
   devise_for :users
 
-  resources :stocks, only: [ :index, :show ]
+  resources :stocks, only: [ :index, :show ] do
+    member { get :ohlcv }
+  end
   resources :leagues, only: [ :index, :show, :new, :create, :destroy ] do
     member do
       post :invite
@@ -16,7 +18,9 @@ Rails.application.routes.draw do
 
   resources :friendships, only: [ :index, :create, :update, :destroy ]
   resources :portfolios, only: [ :show ] do
-    resources :trades, only: [ :create ]
+    resources :trades, only: [ :create ] do
+      member { patch :cancel }
+    end
   end
 
   root to: "home#index"
