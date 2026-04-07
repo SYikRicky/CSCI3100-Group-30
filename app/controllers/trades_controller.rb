@@ -13,8 +13,7 @@ class TradesController < ApplicationController
         portfolio: @portfolio,
         stock: stock,
         action: trade_params[:action],
-        quantity: trade_params[:quantity],
-        price: trade_params[:price]
+        quantity: trade_params[:quantity]
       ).call
 
       flash[:notice] = "Trade executed successfully (Virtual Trading Only)"
@@ -32,6 +31,6 @@ class TradesController < ApplicationController
   end
 
   def trade_params
-    params.expect(trade: [ :ticker, :action, :quantity, :price ])
+    params.expect(trade: [ :ticker, :action, :quantity ])
   end
 end
