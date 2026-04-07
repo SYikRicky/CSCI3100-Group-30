@@ -1,12 +1,12 @@
 class TradingService
   class Error < StandardError; end
 
-  def initialize(portfolio:, stock:, action:, quantity:, price:, executed_at: Time.current)
+  def initialize(portfolio:, stock:, action:, quantity:, executed_at: Time.current)
     @portfolio = portfolio
     @stock = stock
     @action = action.to_s
     @quantity = BigDecimal(quantity.to_s)
-    @price = BigDecimal(price.to_s)
+    @market_price = BigDecimal(stock.last_price.to_s)
     @executed_at = executed_at
   end
 
@@ -26,7 +26,7 @@ class TradingService
         stock: stock,
         action: action,
         quantity: quantity,
-        price_at_trade: price,
+        price_at_trade: market_price,
         executed_at: executed_at
       )
 
@@ -39,16 +39,17 @@ class TradingService
 
   private
 
-  attr_reader :portfolio, :stock, :action, :quantity, :price, :executed_at
+  attr_reader :portfolio, :stock, :action, :quantity, :market_price, :executed_at
 
   def validate_inputs!
     raise Error, "action must be buy or sell" unless %w[buy sell].include?(action)
     raise Error, "quantity must be greater than 0" unless quantity.positive?
-    raise Error, "price must be greater than 0" unless price.positive?
+    raise Error, "market price unavailable" unless stock.last_price.present?
+    raise Error, "market price must be greater than 0" unless market_price.positive?
   end
 
   def process_buy!
-    cost = quantity * price
+    cost = quantity * market_price
     raise Error, "Insufficient cash balance" if portfolio.cash_balance.to_d < cost
 
     portfolio.update!(cash_balance: portfolio.cash_balance.to_d - cost)
@@ -67,7 +68,7 @@ class TradingService
     raise Error, "no holdings found for #{stock.ticker}" unless holding
     raise Error, "insufficient shares to sell" if holding.quantity.to_d < quantity
 
-    proceeds = quantity * price
+    proceeds = quantity * market_price
     portfolio.update!(cash_balance: portfolio.cash_balance.to_d + proceeds)
 
     remaining_quantity = holding.quantity.to_d - quantity

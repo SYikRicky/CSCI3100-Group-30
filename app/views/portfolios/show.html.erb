@@ -25,11 +25,6 @@
       </div>
 
       <div>
-        <%= label_tag "trade_price", "Price" %>
-        <%= number_field_tag "trade[price]", nil, id: "trade_price", step: "0.01", min: "0.01", required: true %>
-      </div>
-
-      <div>
         <%= f.submit "Execute Trade" %>
       </div>
     <% end %>
