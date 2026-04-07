@@ -51,6 +51,8 @@ class LeaguesController < ApplicationController
     end
 
     if @league.save
+      LeagueMembership.create!(user: current_user, league: @league, role: :owner)
+      Portfolio.create!(user: current_user, league: @league, cash_balance: @league.starting_capital)
       invitees.each { |invitee| invite_to_league(invitee) if invitee != current_user }
       respond_to do |format|
         format.html { redirect_to @league, notice: "League was successfully created." }
