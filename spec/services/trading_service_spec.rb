@@ -13,7 +13,6 @@ RSpec.describe TradingService, type: :service do
           stock: stock,
           action: "buy",
           quantity: 5,
-          price: 100,
           executed_at: executed_at
         ).call
 
@@ -34,7 +33,6 @@ RSpec.describe TradingService, type: :service do
           stock: stock,
           action: "buy",
           quantity: 20,
-          price: 100,
           executed_at: executed_at
         )
 
@@ -53,7 +51,6 @@ RSpec.describe TradingService, type: :service do
           stock: stock,
           action: "sell",
           quantity: 3,
-          price: 120,
           executed_at: executed_at
         ).call
 
@@ -61,7 +58,7 @@ RSpec.describe TradingService, type: :service do
         holding = portfolio.holdings.find_by(stock: stock)
 
         expect(trade.action).to eq("sell")
-        expect(portfolio.cash_balance).to eq(BigDecimal("1360.0"))
+        expect(portfolio.cash_balance).to eq(BigDecimal("1300.0"))
         expect(holding.quantity).to eq(BigDecimal("5.0"))
         expect(portfolio.portfolio_valuations.count).to eq(1)
       end
@@ -72,7 +69,6 @@ RSpec.describe TradingService, type: :service do
           stock: stock,
           action: "sell",
           quantity: 8,
-          price: 120,
           executed_at: executed_at
         ).call
 
@@ -85,7 +81,6 @@ RSpec.describe TradingService, type: :service do
           stock: stock,
           action: "sell",
           quantity: 10,
-          price: 120,
           executed_at: executed_at
         )
 

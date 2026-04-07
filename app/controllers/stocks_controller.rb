@@ -7,6 +7,11 @@ class StocksController < ApplicationController
     @stock = Stock.find(params[:id])
     ensure_owner_portfolios
     @portfolios = current_user.portfolios.includes(:league)
+    @portfolio_cash = @portfolios.each_with_object({}) { |p, h| h[p.id] = p.cash_balance.to_f }
+    holding_rows = Holding.where(portfolio_id: @portfolios.map(&:id), stock_id: @stock.id)
+    @my_holdings = holding_rows.each_with_object({}) do |h, memo|
+      memo[h.portfolio_id] = { quantity: h.quantity.to_f, average_cost: h.average_cost.to_f }
+    end
     @chart_data = PriceSnapshot.where(stock_id: @stock.id)
                                .order(:recorded_at)
                                .map do |s|

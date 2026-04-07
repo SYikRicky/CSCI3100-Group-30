@@ -89,55 +89,116 @@
           Place Trade
         </h2>
 
-        <div id="trade-msg" style="display: none; border-radius: 8px; padding: 0.65rem 1rem; margin-bottom: 1rem; font-size: 0.82rem; text-align: center;"></div>
+        <div id="pt-msg" style="display: none; border-radius: 8px; padding: 0.65rem 1rem; margin-bottom: 1rem; font-size: 0.82rem; text-align: center;"></div>
 
-        <%= form_with url: portfolio_trades_path(@portfolio), method: :post, local: true, id: "portfolio-trade-form" do |f| %>
-          <div style="margin-bottom: 1rem;">
-            <label style="display: block; color: #929AA5; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;">
-              Ticker
-            </label>
-            <%= text_field_tag "trade[ticker]", nil, id: "trade_ticker", required: true,
-                class: "bnb-input", placeholder: "e.g. AAPL" %>
+        <%# Step 1: ticker %>
+        <div id="pt-step1">
+          <label style="display: block; color: #929AA5; font-size: 0.68rem; font-weight: 700;
+                        text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;">
+            Ticker
+          </label>
+          <div style="display: flex; gap: 0.5rem;">
+            <input type="text" id="pt-ticker-input" class="bnb-input"
+                   placeholder="e.g. AAPL" style="flex: 1; text-transform: uppercase;"
+                   oninput="this.value=this.value.toUpperCase()"
+                   onkeydown="if(event.key==='Enter'){event.preventDefault();ptNext();}">
+            <button type="button" onclick="ptNext()"
+                    style="padding: 0.55rem 1rem; background: #14B8A6; color: #0d0f17;
+                           border: none; border-radius: 6px; font-weight: 700; font-size: 0.82rem;
+                           cursor: pointer; transition: background 0.2s; white-space: nowrap;"
+                    onmouseover="this.style.background='#0d9488'"
+                    onmouseout="this.style.background='#14B8A6'">
+              Next →
+            </button>
+          </div>
+          <div id="pt-ticker-error"
+               style="display: none; color: #F6465D; font-size: 0.75rem; margin-top: 0.4rem;"></div>
+        </div>
+
+        <%# Step 2: action + quantity (hidden until valid ticker) %>
+        <div id="pt-step2" style="display: none;">
+          <%# Stock badge %>
+          <div id="pt-stock-badge"
+               style="background: rgba(20,184,166,0.08); border: 1px solid rgba(20,184,166,0.2);
+                      border-radius: 8px; padding: 0.65rem 1rem; margin-bottom: 1rem;
+                      display: flex; align-items: center; justify-content: space-between;">
+            <div>
+              <span id="pt-badge-ticker"
+                    style="color: #14B8A6; font-weight: 700; font-size: 0.95rem; letter-spacing: 0.05em;"></span>
+              <span id="pt-badge-name"
+                    style="color: #929AA5; font-size: 0.75rem; margin-left: 0.5rem;"></span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+              <span id="pt-badge-price"
+                    style="color: #EAECEF; font-weight: 700; font-size: 0.9rem;"></span>
+              <button type="button" onclick="ptReset()"
+                      style="background: none; border: none; color: #929AA5; font-size: 0.75rem;
+                             cursor: pointer; padding: 0; text-decoration: underline;"
+                      onmouseover="this.style.color='#EAECEF'"
+                      onmouseout="this.style.color='#929AA5'">change</button>
+            </div>
           </div>
 
-          <div style="margin-bottom: 1rem;">
-            <label style="display: block; color: #929AA5; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;">
-              Action
-            </label>
-            <select name="trade[action]" id="trade_action" class="bnb-input" style="cursor: pointer;">
-              <option value="buy">Buy</option>
-              <option value="sell">Sell</option>
-            </select>
+          <%# Holdings info if user owns this stock %>
+          <div id="pt-holdings-info"
+               style="display: none; background: rgba(255,255,255,0.04); border-radius: 8px;
+                      padding: 0.55rem 1rem; margin-bottom: 1rem; font-size: 0.78rem; color: #929AA5;">
+            <span id="pt-holdings-qty"></span>
+            <span id="pt-holdings-avg" style="margin-left: 0.6rem;"></span>
           </div>
 
-          <div style="margin-bottom: 1rem;">
-            <label style="display: block; color: #929AA5; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;">
-              Quantity
-            </label>
-            <%= number_field_tag "trade[quantity]", nil, id: "trade_quantity",
-                step: "1", min: "1", required: true, class: "bnb-input", placeholder: "Shares" %>
-          </div>
+          <%= form_with url: portfolio_trades_path(@portfolio), method: :post,
+                        id: "portfolio-trade-form", data: { turbo: false } do |f| %>
+            <input type="hidden" id="pt-ticker-hidden" name="trade[ticker]" value="">
 
-          <div style="margin-bottom: 1.5rem;">
-            <label style="display: block; color: #929AA5; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;">
-              Price (USD)
-            </label>
-            <%= number_field_tag "trade[price]", nil, id: "trade_price",
-                step: "0.01", min: "0.01", required: true, class: "bnb-input", placeholder: "0.00" %>
-          </div>
+            <div style="margin-bottom: 1rem;">
+              <label style="display: block; color: #929AA5; font-size: 0.68rem; font-weight: 700;
+                            text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;">
+                Action
+              </label>
+              <div style="display: flex; gap: 0.5rem;">
+                <button type="button" id="pt-btn-buy" onclick="ptSetAction('buy')"
+                        style="flex: 1; padding: 0.55rem; font-weight: 700; font-size: 0.85rem;
+                               border-radius: 6px; cursor: pointer; border: 2px solid #2EBD85;
+                               background: rgba(46,189,133,0.15); color: #2EBD85; transition: all 0.15s;">
+                  ▲ Buy
+                </button>
+                <button type="button" id="pt-btn-sell" onclick="ptSetAction('sell')"
+                        style="flex: 1; padding: 0.55rem; font-weight: 700; font-size: 0.85rem;
+                               border-radius: 6px; cursor: pointer; border: 2px solid rgba(255,255,255,0.1);
+                               background: transparent; color: #929AA5; transition: all 0.15s;">
+                  ▼ Sell
+                </button>
+              </div>
+              <input type="hidden" id="pt-action-hidden" name="trade[action]" value="buy">
+            </div>
 
-          <div id="cost-preview"
-               style="background: rgba(255,255,255,0.04); border-radius: 8px; padding: 0.65rem 1rem;
-                      margin-bottom: 1.25rem; font-size: 0.8rem; color: #929AA5; display: none;">
-            Total: <span id="cost-total" style="color: #EAECEF; font-weight: 700;"></span>
-          </div>
+            <div style="margin-bottom: 0.6rem;">
+              <label style="display: block; color: #929AA5; font-size: 0.68rem; font-weight: 700;
+                            text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;">
+                Quantity
+              </label>
+              <input type="number" id="pt-qty" name="trade[quantity]"
+                     step="1" min="1" required class="bnb-input" placeholder="0"
+                     oninput="ptUpdateTotal()">
+            </div>
 
-          <%= f.submit "Execute Trade",
-              style: "width: 100%; padding: 0.8rem; font-size: 0.9rem; font-weight: 700;
-                      background: #14B8A6; color: #0d0f17; border: none; border-radius: 6px;
-                      cursor: pointer; transition: background 0.2s; letter-spacing: 0.04em;",
-              onmouseover: "this.style.background='#0d9488'", onmouseout: "this.style.background='#14B8A6'" %>
-        <% end %>
+            <div id="pt-presets" style="display: flex; gap: 0.4rem; margin-bottom: 1rem;"></div>
+
+            <div id="pt-cost-preview"
+                 style="display: none; background: rgba(255,255,255,0.04); border-radius: 8px;
+                        padding: 0.65rem 1rem; margin-bottom: 1.25rem; font-size: 0.8rem; color: #929AA5;">
+              Total: <span id="pt-cost-total" style="color: #EAECEF; font-weight: 700;"></span>
+            </div>
+
+            <button type="submit" id="pt-submit-btn"
+                    style="width: 100%; padding: 0.8rem; font-size: 0.9rem; font-weight: 700;
+                           background: #2EBD85; color: #fff; border: none; border-radius: 6px;
+                           cursor: pointer; transition: background 0.2s;">
+              Confirm Buy
+            </button>
+          <% end %>
+        </div>
       </div>
 
     </div>
@@ -185,24 +246,166 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-  const priceF   = document.getElementById('trade_price');
-  const qtyF     = document.getElementById('trade_quantity');
-  const total    = document.getElementById('cost-total');
-  const preview  = document.getElementById('cost-preview');
+  const ALL_STOCKS      = <%= raw @all_stocks.to_json %>;
+  const PT_HOLDINGS     = {};
+  <% @holdings.each do |h| %>
+    PT_HOLDINGS['<%= h.stock.ticker %>'] = { quantity: <%= h.quantity.to_f %>, average_cost: <%= h.average_cost.to_f %> };
+  <% end %>
+  const PT_CASH = <%= @portfolio.cash_balance.to_f %>;
+  let ptAction  = 'buy';
+  let ptTicker  = '';
 
-  function updateTotal() {
-    const p = parseFloat(priceF?.value) || 0;
-    const q = parseInt(qtyF?.value) || 0;
-    if (p > 0 && q > 0) {
-      total.textContent = '$' + (p * q).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  function ptShowMsg(text, isError) {
+    const el = document.getElementById('pt-msg');
+    el.textContent = text;
+    el.style.background = isError ? 'rgba(246,70,93,0.12)' : 'rgba(46,189,133,0.12)';
+    el.style.color       = isError ? '#F6465D' : '#2EBD85';
+    el.style.display     = 'block';
+    if (!isError) setTimeout(() => { el.style.display = 'none'; }, 4000);
+  }
+
+  function ptNext() {
+    const input  = document.getElementById('pt-ticker-input');
+    const errEl  = document.getElementById('pt-ticker-error');
+    const ticker = (input?.value || '').trim().toUpperCase();
+    const stock  = ALL_STOCKS[ticker];
+
+    if (!ticker) { errEl.textContent = 'Please enter a ticker.'; errEl.style.display = 'block'; return; }
+    if (!stock)  { errEl.textContent = '"' + ticker + '" is not a valid ticker.'; errEl.style.display = 'block'; return; }
+    if (!stock.price || stock.price <= 0) {
+      errEl.textContent = 'No price available for ' + ticker + ' yet.';
+      errEl.style.display = 'block'; return;
+    }
+
+    errEl.style.display = 'none';
+    ptTicker = ticker;
+
+    document.getElementById('pt-badge-ticker').textContent = ticker;
+    document.getElementById('pt-badge-name').textContent   = stock.name;
+    document.getElementById('pt-badge-price').textContent  = '$' + stock.price.toFixed(2);
+    document.getElementById('pt-ticker-hidden').value      = ticker;
+
+    const h = PT_HOLDINGS[ticker];
+    const hInfo = document.getElementById('pt-holdings-info');
+    if (h && h.quantity > 0) {
+      document.getElementById('pt-holdings-qty').textContent = 'You own: ' + h.quantity + ' shares';
+      document.getElementById('pt-holdings-avg').textContent = '· Avg buy-in: $' + h.average_cost.toFixed(2);
+      hInfo.style.display = 'block';
+    } else {
+      hInfo.style.display = 'none';
+    }
+
+    document.getElementById('pt-step1').style.display = 'none';
+    document.getElementById('pt-step2').style.display = 'block';
+    document.getElementById('pt-qty').value = '';
+    document.getElementById('pt-cost-preview').style.display = 'none';
+    ptSetAction('buy');
+  }
+
+  function ptReset() {
+    ptTicker = '';
+    document.getElementById('pt-step1').style.display = 'block';
+    document.getElementById('pt-step2').style.display = 'none';
+    document.getElementById('pt-ticker-input').value  = '';
+    document.getElementById('pt-ticker-error').style.display = 'none';
+    document.getElementById('pt-msg').style.display   = 'none';
+  }
+
+  function ptSetAction(action) {
+    ptAction = action;
+    document.getElementById('pt-action-hidden').value = action;
+
+    const buyBtn  = document.getElementById('pt-btn-buy');
+    const sellBtn = document.getElementById('pt-btn-sell');
+    const submitBtn = document.getElementById('pt-submit-btn');
+
+    buyBtn.style.border     = action === 'buy' ? '2px solid #2EBD85' : '2px solid rgba(255,255,255,0.1)';
+    buyBtn.style.background = action === 'buy' ? 'rgba(46,189,133,0.15)' : 'transparent';
+    buyBtn.style.color      = action === 'buy' ? '#2EBD85' : '#929AA5';
+    sellBtn.style.border    = action === 'sell' ? '2px solid #F6465D' : '2px solid rgba(255,255,255,0.1)';
+    sellBtn.style.background = action === 'sell' ? 'rgba(246,70,93,0.15)' : 'transparent';
+    sellBtn.style.color     = action === 'sell' ? '#F6465D' : '#929AA5';
+    submitBtn.style.background = action === 'buy' ? '#2EBD85' : '#F6465D';
+    submitBtn.textContent   = action === 'buy' ? 'Confirm Buy' : 'Confirm Sell';
+
+    ptRenderPresets();
+    ptUpdateTotal();
+  }
+
+  function ptRenderPresets() {
+    const container = document.getElementById('pt-presets');
+    if (!container || !ptTicker) return;
+    const stock = ALL_STOCKS[ptTicker];
+    if (!stock || stock.price <= 0) return;
+    container.innerHTML = '';
+
+    [25, 50, 75, 100].forEach(pct => {
+      let qty = 0;
+      if (ptAction === 'sell') {
+        const h = PT_HOLDINGS[ptTicker];
+        qty = Math.floor((h ? h.quantity : 0) * pct / 100);
+      } else {
+        qty = Math.floor((PT_CASH * pct / 100) / stock.price);
+      }
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.innerHTML = '<span style="display:block;font-size:0.72rem;">' + pct + '%</span>' +
+                      '<span style="display:block;font-size:0.65rem;opacity:0.7;">' + (qty > 0 ? qty + ' sh' : '—') + '</span>';
+      btn.style.cssText = 'flex:1;padding:0.35rem 0;font-weight:700;line-height:1.3;' +
+        'background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);' +
+        'border-radius:4px;color:#929AA5;cursor:pointer;transition:all 0.15s;';
+      btn.onmouseover = () => { btn.style.borderColor = '#14B8A6'; btn.style.color = '#14B8A6'; };
+      btn.onmouseout  = () => { btn.style.borderColor = 'rgba(255,255,255,0.1)'; btn.style.color = '#929AA5'; };
+      btn.onclick = () => {
+        const qtyF = document.getElementById('pt-qty');
+        if (qtyF && qty > 0) { qtyF.value = qty; ptUpdateTotal(); }
+      };
+      container.appendChild(btn);
+    });
+  }
+
+  function ptUpdateTotal() {
+    const q     = parseInt(document.getElementById('pt-qty')?.value) || 0;
+    const stock = ptTicker ? ALL_STOCKS[ptTicker] : null;
+    const price = stock ? stock.price : 0;
+    const preview = document.getElementById('pt-cost-preview');
+    const total   = document.getElementById('pt-cost-total');
+    if (price > 0 && q > 0) {
+      total.textContent = '$' + (price * q).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       preview.style.display = 'block';
     } else {
       preview.style.display = 'none';
     }
   }
 
-  priceF?.addEventListener('input', updateTotal);
-  qtyF?.addEventListener('input', updateTotal);
-});
+  document.addEventListener('DOMContentLoaded', function () {
+    const form = document.getElementById('portfolio-trade-form');
+    form?.addEventListener('submit', function (e) {
+      e.preventDefault();
+      const qty = parseInt(document.getElementById('pt-qty')?.value) || 0;
+      if (qty <= 0) { ptShowMsg('Please enter a valid quantity.', true); return; }
+
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+      const formData  = new FormData(form);
+
+      fetch(form.action, {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': csrfToken, 'Accept': 'application/json' },
+        body: formData
+      })
+      .then(r => r.json().then(data => ({ ok: r.ok, data })))
+      .then(({ ok, data }) => {
+        if (ok) {
+          ptShowMsg(data.notice || 'Trade executed!', false);
+          document.getElementById('pt-qty').value = '';
+          document.getElementById('pt-cost-preview').style.display = 'none';
+          ptRenderPresets();
+        } else {
+          ptShowMsg(data.error || 'Trade failed.', true);
+        }
+      })
+      .catch(() => ptShowMsg('Network error. Please try again.', true));
+    });
+  });
 </script>

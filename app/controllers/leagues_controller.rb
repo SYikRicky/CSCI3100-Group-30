@@ -11,6 +11,14 @@ class LeaguesController < ApplicationController
   def show
     authorize @league
     @members = @league.league_memberships.includes(:user)
+    starting = @league.starting_capital.to_d
+    portfolios = Portfolio.where(league: @league).includes(:user, holdings: :stock)
+    @leaderboard = portfolios.map do |p|
+      tv    = p.total_value
+      pnl   = tv - starting
+      pnl_pct = starting > 0 ? (pnl / starting * 100).round(2) : 0
+      { user: p.user, portfolio: p, total_value: tv, pnl: pnl, pnl_pct: pnl_pct }
+    end.sort_by { |e| [-e[:total_value], e[:user].id == current_user.id ? 0 : 1] }
   end
 
   def invite

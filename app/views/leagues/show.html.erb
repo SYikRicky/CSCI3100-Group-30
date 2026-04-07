@@ -14,9 +14,80 @@
 
   <% if (portfolio = current_user.portfolios.find_by(league: @league)) %>
     <div style="margin-top: 0.75rem">
-      <%= link_to "View My Portfolio", portfolio_path(portfolio) %>
+      <%= link_to "View My Portfolio", portfolio_path(portfolio),
+          style: "color: #14B8A6; font-size: 0.82rem; text-decoration: none;",
+          onmouseover: "this.style.color='#5eead4'", onmouseout: "this.style.color='#14B8A6'" %>
     </div>
   <% end %>
+
+  <%# ── Leaderboard ── %>
+  <% if @leaderboard.any? %>
+    <div style="margin-top: 2rem; background: #12141e; border: 1px solid rgba(255,255,255,0.07);
+                border-radius: 12px; overflow: hidden;">
+      <div style="padding: 1rem 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.07);
+                  display: flex; align-items: center; justify-content: space-between;">
+        <h2 style="color: #EAECEF; font-size: 0.9rem; font-weight: 700; margin: 0;
+                   text-transform: uppercase; letter-spacing: 0.08em;">Leaderboard</h2>
+        <span style="color: #929AA5; font-size: 0.72rem;">
+          Starting capital: $<%= number_with_delimiter(@league.starting_capital.to_i) %>
+        </span>
+      </div>
+      <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+          <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+            <th style="padding: 0.65rem 1.5rem; text-align: left; color: #929AA5; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; width: 40px;">#</th>
+            <th style="padding: 0.65rem 1rem; text-align: left; color: #929AA5; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;">Name</th>
+            <th style="padding: 0.65rem 1rem; text-align: right; color: #929AA5; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;">Total Value</th>
+            <th style="padding: 0.65rem 1.5rem; text-align: right; color: #929AA5; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;">P&amp;L</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @leaderboard.each_with_index do |entry, i| %>
+            <% is_me = entry[:user].id == current_user.id %>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.04);
+                       <%= is_me ? 'background: rgba(20,184,166,0.06);' : '' %>"
+                onmouseover="this.style.background='<%= is_me ? 'rgba(20,184,166,0.1)' : 'rgba(255,255,255,0.02)' %>'"
+                onmouseout="this.style.background='<%= is_me ? 'rgba(20,184,166,0.06)' : 'transparent' %>'">
+              <td style="padding: 0.85rem 1.5rem; color: #929AA5; font-size: 0.82rem; font-weight: 700;">
+                <% if i == 0 %>🥇<% elsif i == 1 %>🥈<% elsif i == 2 %>🥉<% else %><%= i + 1 %><% end %>
+              </td>
+              <td style="padding: 0.85rem 1rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <div style="width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+                              background: <%= is_me ? 'rgba(20,184,166,0.2)' : 'rgba(99,102,241,0.2)' %>;
+                              border: 1px solid <%= is_me ? 'rgba(20,184,166,0.4)' : 'rgba(99,102,241,0.3)' %>;
+                              display: flex; align-items: center; justify-content: center;
+                              color: <%= is_me ? '#14B8A6' : '#818cf8' %>; font-size: 0.7rem; font-weight: 700;">
+                    <%= entry[:user].display_name.first.upcase %>
+                  </div>
+                  <div>
+                    <div style="color: #EAECEF; font-size: 0.85rem; font-weight: <%= is_me ? '700' : '500' %>;">
+                      <%= entry[:user].display_name %><% if is_me %> <span style="color: #14B8A6; font-size: 0.68rem;">(you)</span><% end %>
+                    </div>
+                  </div>
+                </div>
+              </td>
+              <td style="padding: 0.85rem 1rem; text-align: right; color: #EAECEF; font-size: 0.88rem; font-weight: 700;">
+                $<%= number_with_precision(entry[:total_value], precision: 2, delimiter: ",") %>
+              </td>
+              <td style="padding: 0.85rem 1.5rem; text-align: right;">
+                <% color = entry[:pnl] >= 0 ? '#2EBD85' : '#F6465D' %>
+                <% sign  = entry[:pnl] >= 0 ? '+' : '' %>
+                <div style="color: <%= color %>; font-size: 0.85rem; font-weight: 700;">
+                  <%= sign %>$<%= number_with_precision(entry[:pnl].abs, precision: 2, delimiter: ",") %>
+                  <%= entry[:pnl] < 0 ? '-' : '' %>
+                </div>
+                <div style="color: <%= color %>; font-size: 0.72rem; opacity: 0.85;">
+                  (<%= sign %><%= number_with_precision(entry[:pnl_pct].abs, precision: 2) %>%)
+                </div>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+
 </div>
 
 <%# ── Right sidebar ── %>

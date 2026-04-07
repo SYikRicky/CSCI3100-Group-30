@@ -12,7 +12,7 @@ RSpec.describe "Trades", type: :request do
   describe "POST /portfolios/:portfolio_id/trades" do
     it "executes a buy and redirects to portfolio page" do
       post portfolio_trades_path(portfolio), params: {
-        trade: { ticker: stock.ticker, action: "buy", quantity: 2, price: 100 }
+        trade: { ticker: stock.ticker, action: "buy", quantity: 2 }
       }
 
       expect(response).to redirect_to(portfolio_path(portfolio))
@@ -22,7 +22,7 @@ RSpec.describe "Trades", type: :request do
 
     it "shows error when cash is insufficient" do
       post portfolio_trades_path(portfolio), params: {
-        trade: { ticker: stock.ticker, action: "buy", quantity: 20, price: 100 }
+        trade: { ticker: stock.ticker, action: "buy", quantity: 20 }
       }
 
       expect(response).to redirect_to(portfolio_path(portfolio))
@@ -34,7 +34,7 @@ RSpec.describe "Trades", type: :request do
       create(:holding, portfolio: portfolio, stock: stock, quantity: 2, average_cost: 90)
 
       post portfolio_trades_path(portfolio), params: {
-        trade: { ticker: stock.ticker, action: "sell", quantity: 5, price: 100 }
+        trade: { ticker: stock.ticker, action: "sell", quantity: 5 }
       }
 
       expect(response).to redirect_to(portfolio_path(portfolio))
@@ -44,12 +44,21 @@ RSpec.describe "Trades", type: :request do
 
     it "shows error when stock ticker is unknown" do
       post portfolio_trades_path(portfolio), params: {
-        trade: { ticker: "UNKNOWN", action: "buy", quantity: 1, price: 10 }
+        trade: { ticker: "UNKNOWN", action: "buy", quantity: 1 }
       }
 
       expect(response).to redirect_to(portfolio_path(portfolio))
       follow_redirect!
       expect(response.body).to include("Stock not found")
+    end
+
+    it "uses stock market price instead of client supplied price" do
+      post portfolio_trades_path(portfolio), params: {
+        trade: { ticker: stock.ticker, action: "buy", quantity: 1, price: 1 }
+      }
+
+      trade = Trade.order(:created_at).last
+      expect(trade.price_at_trade.to_d).to eq(stock.last_price.to_d)
     end
   end
 end

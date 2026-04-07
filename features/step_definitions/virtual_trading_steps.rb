@@ -14,11 +14,9 @@ Given('the stock {string} has a price of {float}') do |ticker, price|
 end
 
 When('I buy {int} shares of {string}') do |quantity, ticker|
-  stock = Stock.find_by!(ticker: ticker)
   fill_in "Ticker", with: ticker
   select "Buy", from: "Action"
   fill_in "Quantity", with: quantity
-  fill_in "Price", with: stock.last_price
   click_button "Execute Trade"
 end
 
@@ -31,18 +29,15 @@ When('I try to buy {int} shares of {string} at {float}') do |quantity, ticker, p
   fill_in "Ticker", with: ticker
   select "Buy", from: "Action"
   fill_in "Quantity", with: quantity
-  fill_in "Price", with: price
   click_button "Execute Trade"
 end
 
 When('I sell {int} shares of {string}') do |quantity, ticker|
-  stock = Stock.find_by!(ticker: ticker)
   @cash_before_sell = @portfolio.reload.cash_balance.to_d
 
   fill_in "Ticker", with: ticker
   select "Sell", from: "Action"
   fill_in "Quantity", with: quantity
-  fill_in "Price", with: stock.last_price
   click_button "Execute Trade"
 end
 
