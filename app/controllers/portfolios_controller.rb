@@ -11,6 +11,6 @@ class PortfoliosController < ApplicationController
   private
 
   def set_portfolio
-    @portfolio = current_user.portfolios.find(params[:id])
+    @portfolio = Portfolio.find(params[:id])
   end
 end

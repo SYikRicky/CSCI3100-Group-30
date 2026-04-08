@@ -1,6 +1,8 @@
 require "active_support/core_ext/integer/time"
 
 Rails.application.configure do
+  config.active_job.queue_adapter = :solid_queue
+  config.solid_queue.connects_to = { database: { writing: :queue } }
   # Link Rails to SendGrid
   config.action_mailer.delivery_method = :smtp
   config.action_mailer.smtp_settings = {
