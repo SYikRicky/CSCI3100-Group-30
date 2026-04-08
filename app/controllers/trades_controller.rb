@@ -4,24 +4,22 @@ class TradesController < ApplicationController
   def create
     stock = Stock.find_by(ticker: trade_params[:ticker].to_s.upcase)
     unless stock
-      flash[:alert] = "Stock not found"
-      return redirect_to portfolio_path(@portfolio)
+      return respond_with_error("Stock not found")
     end
 
-    begin
-      TradingService.new(
-        portfolio: @portfolio,
-        stock: stock,
-        action: trade_params[:action],
-        quantity: trade_params[:quantity]
-      ).call
+    trade = TradingService.new(
+      portfolio: @portfolio,
+      stock: stock,
+      action: trade_params[:action],
+      quantity: trade_params[:quantity]
+    ).call
 
-      flash[:notice] = "Trade executed successfully (Virtual Trading Only)"
-    rescue TradingService::Error => e
-      flash[:alert] = e.message
+    respond_to do |format|
+      format.html { flash[:notice] = "Trade executed successfully (Virtual Trading Only)"; redirect_to portfolio_path(@portfolio) }
+      format.json { render json: { notice: "#{trade_params[:action].capitalize} #{trade.quantity} × #{stock.ticker} executed." } }
     end
-
-    redirect_to portfolio_path(@portfolio)
+  rescue TradingService::Error => e
+    respond_with_error(e.message)
   end
 
   private
@@ -32,5 +30,12 @@ class TradesController < ApplicationController
 
   def trade_params
     params.expect(trade: [ :ticker, :action, :quantity ])
+  end
+
+  def respond_with_error(message)
+    respond_to do |format|
+      format.html { flash[:alert] = message; redirect_to portfolio_path(@portfolio) }
+      format.json { render json: { error: message }, status: :unprocessable_entity }
+    end
   end
 end

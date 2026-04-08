@@ -3,7 +3,8 @@ class LeaguesController < ApplicationController
   before_action :set_league, only: [ :show, :destroy, :invite ]
 
   def index
-    @leagues = League.all
+    member_league_ids = LeagueMembership.where(user: current_user).select(:league_id)
+    @leagues = League.where(id: member_league_ids)
     @league  = League.new
     @friends = current_user.friends
   end
@@ -11,6 +12,14 @@ class LeaguesController < ApplicationController
   def show
     authorize @league
     @members = @league.league_memberships.includes(:user)
+    starting = @league.starting_capital.to_d
+    portfolios = Portfolio.where(league: @league).includes(:user, holdings: :stock)
+    @leaderboard = portfolios.map do |p|
+      tv    = p.total_value
+      pnl   = tv - starting
+      pnl_pct = starting > 0 ? (pnl / starting * 100).round(2) : 0
+      { user: p.user, portfolio: p, total_value: tv, pnl: pnl, pnl_pct: pnl_pct }
+    end.sort_by { |e| [ -e[:total_value], e[:user].id == current_user.id ? 0 : 1 ] }
   end
 
   def invite
@@ -51,6 +60,8 @@ class LeaguesController < ApplicationController
     end
 
     if @league.save
+      LeagueMembership.create!(user: current_user, league: @league, role: :owner)
+      Portfolio.create!(user: current_user, league: @league, cash_balance: @league.starting_capital)
       invitees.each { |invitee| invite_to_league(invitee) if invitee != current_user }
       respond_to do |format|
         format.html { redirect_to @league, notice: "League was successfully created." }

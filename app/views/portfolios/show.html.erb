@@ -1,66 +1,218 @@
-<div style="display: grid; grid-template-columns: 1fr 280px; gap: 1.5rem; padding: 1.25rem 1.5rem;">
-  <div>
-    <h1>Portfolio</h1>
+<% content_for :title, "Portfolio — #{@portfolio.league.name}" %>
 
-    <p><strong>League:</strong> <%= @portfolio.league.name %></p>
-    <p><strong>Cash balance:</strong> <%= number_with_precision(@portfolio.cash_balance, precision: 2) %></p>
-    <p><strong>Total value:</strong> <%= number_with_precision(@portfolio.total_value, precision: 2) %></p>
+<div style="min-height: calc(100vh - 64px); background: #0d0f17; padding: 2rem 1.5rem; color: #EAECEF;">
+  <div style="max-width: 960px; margin: 0 auto;">
 
-    <h2>Virtual Trading Only</h2>
-
-    <%= form_with url: portfolio_trades_path(@portfolio), method: :post, local: true do |f| %>
+    <%# ── Header ── %>
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem;">
       <div>
-        <%= label_tag "trade_ticker", "Ticker" %>
-        <%= text_field_tag "trade[ticker]", nil, id: "trade_ticker", required: true %>
+        <div style="color: #929AA5; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.3rem;">Portfolio</div>
+        <h1 class="tw-font-custom" style="color: #EAECEF; font-size: 1.5rem; letter-spacing: 0.06em; margin: 0;">
+          <%= @portfolio.league.name %>
+        </h1>
       </div>
+      <%= link_to "← Back to League", league_path(@portfolio.league),
+          style: "color: #929AA5; font-size: 0.82rem; text-decoration: none; transition: color 0.2s;",
+          onmouseover: "this.style.color='#EAECEF'", onmouseout: "this.style.color='#929AA5'" %>
+    </div>
 
-      <div>
-        <%= label_tag "trade_action", "Action" %>
-        <%= select_tag "trade[action]", options_for_select([["Buy", "buy"], ["Sell", "sell"]]), id: "trade_action" %>
+    <%# ── Stats row ── %>
+    <% starting   = @portfolio.league.starting_capital.to_d %>
+    <% total_val  = @portfolio.total_value %>
+    <% pnl        = total_val - starting %>
+    <% pnl_pct    = starting > 0 ? (pnl / starting * 100) : 0 %>
+    <% pnl_color  = pnl >= 0 ? '#2EBD85' : '#F6465D' %>
+    <% pnl_sign   = pnl >= 0 ? '+' : '' %>
+
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem;">
+      <div style="background: #12141e; border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 1.25rem 1.5rem;">
+        <div style="color: #929AA5; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem;">Cash</div>
+        <div style="color: #EAECEF; font-size: 1.3rem; font-weight: 700;">
+          $<%= number_with_precision(@portfolio.cash_balance, precision: 2, delimiter: ",") %>
+        </div>
       </div>
-
-      <div>
-        <%= label_tag "trade_quantity", "Quantity" %>
-        <%= number_field_tag "trade[quantity]", nil, id: "trade_quantity", step: "1", min: "1", required: true %>
+      <div style="background: #12141e; border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 1.25rem 1.5rem;">
+        <div style="color: #929AA5; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem;">Holdings</div>
+        <div style="color: #EAECEF; font-size: 1.3rem; font-weight: 700;">
+          $<%= number_with_precision(@portfolio.holdings_value, precision: 2, delimiter: ",") %>
+        </div>
       </div>
-
-      <div>
-        <%= f.submit "Execute Trade" %>
+      <div style="background: #12141e; border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 1.25rem 1.5rem;">
+        <div style="color: #929AA5; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem;">Total Value</div>
+        <div style="color: #14B8A6; font-size: 1.3rem; font-weight: 700;">
+          $<%= number_with_precision(total_val, precision: 2, delimiter: ",") %>
+        </div>
       </div>
-    <% end %>
+      <div style="background: #12141e; border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 1.25rem 1.5rem;">
+        <div style="color: #929AA5; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem;">Total P&amp;L</div>
+        <div style="color: <%= pnl_color %>; font-size: 1.3rem; font-weight: 700;">
+          <%= pnl_sign %>$<%= number_with_precision(pnl.abs, precision: 2, delimiter: ",") %>
+        </div>
+        <div style="color: <%= pnl_color %>; font-size: 0.72rem; margin-top: 0.2rem;">
+          (<%= pnl_sign %><%= number_with_precision(pnl_pct.abs, precision: 2) %>%)
+        </div>
+      </div>
+    </div>
 
-    <h2>Holdings</h2>
-    <% if @holdings.any? %>
-      <table>
-        <thead>
-          <tr>
-            <th>Ticker</th>
-            <th>Quantity</th>
-            <th>Average cost</th>
-            <th>Market value</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% @holdings.each do |holding| %>
-            <tr>
-              <td><%= holding.stock.ticker %></td>
-              <td><%= holding.quantity %></td>
-              <td><%= number_with_precision(holding.average_cost, precision: 2) %></td>
-              <td><%= number_with_precision(holding.market_value, precision: 2) %></td>
+    <%# ── Holdings table ── %>
+    <div style="background: #12141e; border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; overflow: hidden; margin-bottom: 1.5rem;">
+      <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.07);">
+        <h2 style="color: #EAECEF; font-size: 0.95rem; font-weight: 700; margin: 0; text-transform: uppercase; letter-spacing: 0.06em;">Holdings</h2>
+      </div>
+      <% if @holdings.any? %>
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+              <th style="padding: 0.75rem 1.5rem; text-align: left;   color: #929AA5; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;">Ticker</th>
+              <th style="padding: 0.75rem 1rem;  text-align: right;  color: #929AA5; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;">Qty</th>
+              <th style="padding: 0.75rem 1rem;  text-align: right;  color: #929AA5; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;">Avg Cost</th>
+              <th style="padding: 0.75rem 1rem;  text-align: right;  color: #929AA5; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;">Mkt Price</th>
+              <th style="padding: 0.75rem 1rem;  text-align: right;  color: #929AA5; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;">Mkt Value</th>
+              <th style="padding: 0.75rem 1.5rem; text-align: right; color: #929AA5; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;">Unrealized P&amp;L</th>
             </tr>
-          <% end %>
-        </tbody>
-      </table>
-    <% else %>
-      <p>No holdings yet.</p>
-    <% end %>
-  </div>
+          </thead>
+          <tbody>
+            <% @holdings.each do |holding| %>
+              <% upnl      = (holding.market_price.to_d - holding.average_cost.to_d) * holding.quantity.to_d %>
+              <% upnl_pct  = holding.average_cost.to_d > 0 ? (upnl / (holding.average_cost.to_d * holding.quantity.to_d) * 100) : 0 %>
+              <% upnl_col  = upnl >= 0 ? '#2EBD85' : '#F6465D' %>
+              <% upnl_sign = upnl >= 0 ? '+' : '' %>
+              <tr class="holding-row"
+                  data-ticker="<%= holding.stock.ticker %>"
+                  data-avg-cost="<%= holding.average_cost.to_f %>"
+                  data-quantity="<%= holding.quantity.to_f %>"
+                  style="border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.15s;"
+                  onmouseover="this.style.background='rgba(255,255,255,0.02)'"
+                  onmouseout="this.style.background='transparent'">
+                <td style="padding: 0.85rem 1.5rem;">
+                  <%= link_to holding.stock.ticker, stock_path(holding.stock),
+                      style: "color: #14B8A6; font-weight: 700; font-size: 0.9rem; text-decoration: none; letter-spacing: 0.04em;",
+                      onmouseover: "this.style.color='#5eead4'", onmouseout: "this.style.color='#14B8A6'",
+                      data: { turbo: false } %>
+                </td>
+                <td style="padding: 0.85rem 1rem; text-align: right; color: #EAECEF; font-size: 0.9rem;"><%= number_with_delimiter(holding.quantity.to_i) %></td>
+                <td style="padding: 0.85rem 1rem; text-align: right; color: #929AA5; font-size: 0.9rem;">$<%= number_with_precision(holding.average_cost.to_f, precision: 2, delimiter: ",") %></td>
+                <td class="holding-mkt-price" style="padding: 0.85rem 1rem; text-align: right; color: #EAECEF; font-size: 0.9rem;">$<%= number_with_precision(holding.market_price.to_f, precision: 2, delimiter: ",") %></td>
+                <td class="holding-mkt-value" style="padding: 0.85rem 1rem; text-align: right; color: #EAECEF; font-size: 0.9rem; font-weight: 600;">$<%= number_with_precision(holding.market_value.to_f, precision: 2, delimiter: ",") %></td>
+                <td class="holding-upnl" style="padding: 0.85rem 1.5rem; text-align: right;">
+                  <div class="upnl-amount" style="color: <%= upnl_col %>; font-size: 0.88rem; font-weight: 700;">
+                    <%= upnl_sign %>$<%= number_with_precision(upnl.abs, precision: 2, delimiter: ",") %>
+                  </div>
+                  <div class="upnl-pct" style="color: <%= upnl_col %>; font-size: 0.7rem; opacity: 0.85;">
+                    (<%= upnl_sign %><%= number_with_precision(upnl_pct.abs, precision: 2) %>%)
+                  </div>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      <% else %>
+        <div style="padding: 3rem 1.5rem; text-align: center; color: #929AA5; font-size: 0.85rem;">
+          No holdings yet. Buy stocks from the chart page.
+        </div>
+      <% end %>
+    </div>
 
-  <aside style="border-left: 1px solid #e5e7eb; padding-left: 1rem;">
-    <h3 style="margin-top: 0;">Portfolio Sidebar</h3>
-    <p style="font-size: 0.9rem;"><strong>Virtual Trading Only</strong></p>
-    <p style="font-size: 0.9rem;">Trades in this league use simulated money and simulated holdings.</p>
-    <p style="font-size: 0.9rem;">Cash: <%= number_with_precision(@portfolio.cash_balance, precision: 2) %></p>
-    <p style="font-size: 0.9rem;">Holdings value: <%= number_with_precision(@portfolio.holdings_value, precision: 2) %></p>
-  </aside>
+    <%# ── Trade history ── %>
+    <% if @portfolio.respond_to?(:trades) && @portfolio.trades.any? %>
+      <div style="background: #12141e; border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; overflow: hidden;">
+        <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.07);">
+          <h2 style="color: #EAECEF; font-size: 0.95rem; font-weight: 700; margin: 0; text-transform: uppercase; letter-spacing: 0.06em;">Trade History</h2>
+        </div>
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+              <th style="padding: 0.75rem 1.5rem; text-align: left;   color: #929AA5; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;">Ticker</th>
+              <th style="padding: 0.75rem 1rem;  text-align: center; color: #929AA5; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;">Action</th>
+              <th style="padding: 0.75rem 1rem;  text-align: right;  color: #929AA5; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;">Qty</th>
+              <th style="padding: 0.75rem 1rem;  text-align: right;  color: #929AA5; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;">Price</th>
+              <th style="padding: 0.75rem 1.5rem; text-align: right; color: #929AA5; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;">Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @portfolio.trades.order(created_at: :desc).limit(50).each do |trade| %>
+              <tr style="border-bottom: 1px solid rgba(255,255,255,0.04);">
+                <td style="padding: 0.75rem 1.5rem; color: #EAECEF; font-weight: 600; font-size: 0.85rem;"><%= trade.stock.ticker %></td>
+                <td style="padding: 0.75rem 1rem; text-align: center;">
+                  <span style="font-size: 0.72rem; font-weight: 700; padding: 0.15rem 0.55rem; border-radius: 20px;
+                               background: <%= trade.action == 'buy' ? 'rgba(46,189,133,0.15)' : 'rgba(246,70,93,0.15)' %>;
+                               color: <%= trade.action == 'buy' ? '#2EBD85' : '#F6465D' %>;">
+                    <%= trade.action.upcase %>
+                  </span>
+                </td>
+                <td style="padding: 0.75rem 1rem; text-align: right; color: #EAECEF; font-size: 0.85rem;"><%= trade.quantity %></td>
+                <td style="padding: 0.75rem 1rem; text-align: right; color: #929AA5; font-size: 0.85rem;">$<%= number_with_precision(trade.price_at_trade, precision: 2, delimiter: ",") %></td>
+                <td style="padding: 0.75rem 1.5rem; text-align: right; color: #929AA5; font-size: 0.78rem;"><%= trade.created_at.strftime("%b %d, %H:%M") %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% end %>
+
+  </div>
 </div>
+
+<script>
+(function () {
+  var _pollTimer = null;
+
+  function startPolling() {
+    if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+
+    var rows = document.querySelectorAll('tr.holding-row');
+    if (!rows.length) return;
+
+    var tickers = [];
+    rows.forEach(function(r) { tickers.push(r.getAttribute('data-ticker')); });
+    var tickerStr = tickers.join(',');
+
+    function fmt(n) {
+      return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function refresh() {
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', '/stocks/prices?tickers=' + tickerStr);
+      xhr.setRequestHeader('Accept', 'application/json');
+      xhr.onload = function () {
+        if (xhr.status !== 200) return;
+        try { var prices = JSON.parse(xhr.responseText); } catch (e) { return; }
+
+        rows.forEach(function(row) {
+          var ticker  = row.getAttribute('data-ticker');
+          var avgCost = parseFloat(row.getAttribute('data-avg-cost'));
+          var qty     = parseFloat(row.getAttribute('data-quantity'));
+          var price   = prices[ticker];
+          if (!price || price <= 0) return;
+
+          var mktValue = price * qty;
+          var cost     = avgCost * qty;
+          var upnl     = mktValue - cost;
+          var upnlPct  = cost > 0 ? (upnl / cost * 100) : 0;
+          var color    = upnl >= 0 ? '#2EBD85' : '#F6465D';
+          var sign     = upnl >= 0 ? '+' : '';
+
+          row.querySelector('.holding-mkt-price').textContent = '$' + fmt(price);
+          row.querySelector('.holding-mkt-value').textContent = '$' + fmt(mktValue);
+
+          var amtEl = row.querySelector('.upnl-amount');
+          amtEl.textContent = sign + '$' + fmt(Math.abs(upnl));
+          amtEl.style.color = color;
+
+          var pctEl = row.querySelector('.upnl-pct');
+          pctEl.textContent = '(' + sign + fmt(Math.abs(upnlPct)) + '%)';
+          pctEl.style.color = color;
+        });
+      };
+      xhr.send();
+    }
+
+    refresh();
+    _pollTimer = setInterval(refresh, 4000);
+  }
+
+  document.addEventListener('DOMContentLoaded', startPolling);
+  document.addEventListener('turbo:load', startPolling);
+})();
+</script>

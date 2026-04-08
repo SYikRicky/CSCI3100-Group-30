@@ -66,6 +66,276 @@
 <div id="chart-container"
      style="position: fixed; top: 120px; left: 0; right: 0; bottom: 0; z-index: 1;"></div>
 
+<%# ── Buy / Sell floating buttons ── %>
+<% if true %>
+  <div style="position: fixed; bottom: 1.75rem; right: 1.75rem; z-index: 9999;
+              display: flex; flex-direction: column; gap: 0.6rem; pointer-events: auto;">
+    <button onclick="openTradeModal('buy')"
+            style="background: #2EBD85; color: #fff; font-weight: 700; font-size: 0.95rem;
+                   border: none; border-radius: 8px; padding: 0.7rem 1.8rem; cursor: pointer;
+                   box-shadow: 0 4px 20px rgba(46,189,133,0.35); transition: background 0.2s;"
+            onmouseover="this.style.background='#25a673'" onmouseout="this.style.background='#2EBD85'">
+      ▲ Buy
+    </button>
+    <button onclick="openTradeModal('sell')"
+            style="background: #F6465D; color: #fff; font-weight: 700; font-size: 0.95rem;
+                   border: none; border-radius: 8px; padding: 0.7rem 1.8rem; cursor: pointer;
+                   box-shadow: 0 4px 20px rgba(246,70,93,0.35); transition: background 0.2s;"
+            onmouseover="this.style.background='#d93650'" onmouseout="this.style.background='#F6465D'">
+      ▼ Sell
+    </button>
+  </div>
+<% end %>
+
+<%# ── Trade Modal ── %>
+<% if true %>
+<div id="trade-modal"
+     style="display: none; position: fixed; inset: 0; z-index: 200;
+            background: rgba(0,0,0,0.75); align-items: center; justify-content: center; padding: 1.5rem;"
+     onclick="if(event.target===this) closeTrade()">
+  <div style="background: #12141e; border: 1px solid rgba(255,255,255,0.1);
+              border-radius: 16px; padding: 2rem; width: 100%; max-width: 400px; position: relative;">
+
+    <button onclick="closeTrade()"
+            style="position: absolute; top: 1rem; right: 1rem; background: none; border: none;
+                   color: #929AA5; font-size: 1.4rem; cursor: pointer; line-height: 1; padding: 0;"
+            onmouseover="this.style.color='#EAECEF'" onmouseout="this.style.color='#929AA5'">&times;</button>
+
+    <h2 id="trade-title" class="tw-font-custom"
+        style="color: #EAECEF; font-size: 1.2rem; letter-spacing: 0.08em;
+               text-transform: uppercase; margin: 0 0 1.5rem;"></h2>
+
+    <div id="trade-msg" style="display: none; border-radius: 8px; padding: 0.7rem 1rem;
+                               margin-bottom: 1rem; font-size: 0.85rem; text-align: center;"></div>
+
+    <%# embed per-portfolio data for JS %>
+    <script>
+      const PORTFOLIO_CASH     = <%= raw @portfolio_cash.to_json %>;
+      const PORTFOLIO_HOLDINGS = <%= raw @my_holdings.to_json %>;
+    </script>
+
+    <%= form_with url: "#", id: "trade-form", local: true do |f| %>
+      <input type="hidden" name="trade[ticker]" value="<%= @stock.ticker %>">
+      <input type="hidden" id="trade-action-field" name="trade[action]" value="buy">
+
+      <div style="margin-bottom: 1rem;">
+        <label style="display: block; color: #929AA5; font-size: 0.72rem; font-weight: 700;
+                      text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;">
+          Portfolio
+        </label>
+        <% if @portfolios.any? %>
+          <select id="trade-portfolio-select" name="portfolio_id"
+                  class="bnb-input" style="cursor: pointer;" onchange="onPortfolioChange()">
+            <% @portfolios.each do |p| %>
+              <option value="<%= p.id %>"><%= p.league.name %> — $<%= number_with_precision(p.cash_balance, precision: 2, delimiter: ",") %> cash</option>
+            <% end %>
+          </select>
+        <% else %>
+          <div style="background: rgba(246,70,93,0.1); border: 1px solid rgba(246,70,93,0.25);
+                      border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.82rem; color: #F6465D;">
+            You have no portfolios. <%= link_to "Join a league", leagues_path,
+                style: "color: #14B8A6; text-decoration: underline;" %> first.
+          </div>
+          <select id="trade-portfolio-select" name="portfolio_id" style="display: none;"></select>
+        <% end %>
+      </div>
+
+      <%# Holdings info row (shown for sell; hidden for buy with no holdings) %>
+      <div id="trade-holdings-info"
+           style="background: rgba(255,255,255,0.04); border-radius: 8px; padding: 0.6rem 1rem;
+                  margin-bottom: 1rem; font-size: 0.8rem; color: #929AA5; display: none;">
+        <span id="holdings-qty-label"></span>
+        <span id="holdings-avg-label" style="margin-left: 0.75rem;"></span>
+      </div>
+
+      <%# Current price display (read-only, no hidden field) %>
+      <div style="margin-bottom: 1rem;">
+        <label style="display: block; color: #929AA5; font-size: 0.72rem; font-weight: 700;
+                      text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;">
+          Price (USD)
+        </label>
+        <div style="background: rgba(20,184,166,0.08); border: 1px solid rgba(20,184,166,0.2);
+                    border-radius: 6px; padding: 0.55rem 0.75rem; font-weight: 700;
+                    color: #14B8A6; font-size: 0.95rem;" id="trade-price-display">—</div>
+      </div>
+
+      <div style="margin-bottom: 0.6rem;">
+        <label style="display: block; color: #929AA5; font-size: 0.72rem; font-weight: 700;
+                      text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;">
+          Quantity (shares)
+        </label>
+        <input type="number" id="trade-qty-field" name="trade[quantity]"
+               step="1" min="1" required class="bnb-input" placeholder="0"
+               oninput="updateTotal()">
+      </div>
+
+      <%# Quick % preset buttons — labels updated by JS on modal open %>
+      <div style="display: flex; gap: 0.4rem; margin-bottom: 1.25rem;" id="trade-presets"></div>
+
+      <div id="trade-cost-preview"
+           style="background: rgba(255,255,255,0.04); border-radius: 8px; padding: 0.75rem 1rem;
+                  margin-bottom: 1.25rem; font-size: 0.82rem; color: #929AA5; display: none;">
+        Total: <span id="trade-total" style="color: #EAECEF; font-weight: 700;"></span>
+      </div>
+
+      <% if @portfolios.any? %>
+      <button id="trade-submit-btn" type="submit"
+              style="width: 100%; padding: 0.85rem; font-size: 0.95rem; font-weight: 700;
+                     border: none; border-radius: 6px; cursor: pointer; transition: background 0.2s;">
+        Confirm
+      </button>
+      <% end %>
+    <% end %>
+
+  </div>
+</div>
+
+<script>
+  const TRADE_COLORS = { buy: '#2EBD85', sell: '#F6465D' };
+  let _tradeAction = 'buy';
+
+  function getLivePrice() {
+    const el  = document.getElementById('live-price');
+    const raw = el ? el.textContent.replace('$', '').replace(/,/g, '') : '0';
+    return parseFloat(raw) || 0;
+  }
+
+  function selectedPortfolioId() {
+    const sel = document.getElementById('trade-portfolio-select');
+    return sel ? sel.value : null;
+  }
+
+  function renderPresets() {
+    const container = document.getElementById('trade-presets');
+    if (!container) return;
+    container.innerHTML = '';
+    const pid   = selectedPortfolioId();
+    const price = getLivePrice();
+    if (!pid || price <= 0) return;
+
+    [25, 50, 75, 100].forEach(pct => {
+      let qty = 0;
+      if (_tradeAction === 'sell') {
+        const h = PORTFOLIO_HOLDINGS[pid];
+        qty = Math.floor((h ? h.quantity : 0) * pct / 100);
+      } else {
+        const cash = PORTFOLIO_CASH[pid] || 0;
+        qty = Math.floor((cash * pct / 100) / price);
+      }
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.innerHTML = '<span style="display:block;font-size:0.72rem;">' + pct + '%</span>' +
+                      '<span style="display:block;font-size:0.65rem;opacity:0.7;">' + (qty > 0 ? qty + ' sh' : '—') + '</span>';
+      btn.style.cssText = 'flex:1;padding:0.35rem 0;font-weight:700;background:rgba(255,255,255,0.06);' +
+        'border:1px solid rgba(255,255,255,0.1);border-radius:4px;color:#929AA5;cursor:pointer;transition:all 0.15s;line-height:1.3;';
+      btn.onmouseover = () => { btn.style.borderColor = '#14B8A6'; btn.style.color = '#14B8A6'; };
+      btn.onmouseout  = () => { btn.style.borderColor = 'rgba(255,255,255,0.1)'; btn.style.color = '#929AA5'; };
+      btn.onclick = () => {
+        const qtyF = document.getElementById('trade-qty-field');
+        if (qtyF && qty > 0) { qtyF.value = qty; updateTotal(); }
+      };
+      container.appendChild(btn);
+    });
+  }
+
+  function updateHoldingsInfo() {
+    const pid    = selectedPortfolioId();
+    const infoEl = document.getElementById('trade-holdings-info');
+    const qtyLbl = document.getElementById('holdings-qty-label');
+    const avgLbl = document.getElementById('holdings-avg-label');
+    if (!pid || !infoEl) return;
+
+    const h = PORTFOLIO_HOLDINGS[pid];
+    if (h && h.quantity > 0) {
+      qtyLbl.textContent = 'You own: ' + h.quantity + ' shares';
+      avgLbl.textContent = '· Avg buy-in: $' + h.average_cost.toFixed(2);
+      infoEl.style.display = 'block';
+    } else if (_tradeAction === 'sell') {
+      qtyLbl.textContent = 'You own: 0 shares';
+      avgLbl.textContent = '';
+      infoEl.style.display = 'block';
+    } else {
+      infoEl.style.display = 'none';
+    }
+  }
+
+  function updateTotal() {
+    const qtyF    = document.getElementById('trade-qty-field');
+    const total   = document.getElementById('trade-total');
+    const preview = document.getElementById('trade-cost-preview');
+    const price   = getLivePrice();
+    const q       = parseInt(qtyF?.value) || 0;
+    if (price > 0 && q > 0) {
+      total.textContent = '$' + (price * q).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      preview.style.display = 'block';
+    } else {
+      preview.style.display = 'none';
+    }
+  }
+
+  function onPortfolioChange() {
+    updateHoldingsInfo();
+    renderPresets();
+    updateTotal();
+  }
+
+  function openTradeModal(action) {
+    _tradeAction = action;
+    const modal = document.getElementById('trade-modal');
+    const title = document.getElementById('trade-title');
+    const btn   = document.getElementById('trade-submit-btn');
+    const af    = document.getElementById('trade-action-field');
+    const priceD = document.getElementById('trade-price-display');
+    const msg   = document.getElementById('trade-msg');
+    const qtyF  = document.getElementById('trade-qty-field');
+
+    af.value = action;
+    title.textContent = action === 'buy' ? '▲ Buy <%= @stock.ticker %>' : '▼ Sell <%= @stock.ticker %>';
+    if (btn) { btn.style.background = TRADE_COLORS[action]; btn.textContent = action === 'buy' ? 'Confirm Buy' : 'Confirm Sell'; }
+    msg.style.display = 'none';
+    if (qtyF) qtyF.value = '';
+
+    const price = getLivePrice();
+    if (priceD) priceD.textContent = price > 0 ? '$' + price.toFixed(2) : '—';
+
+    updateHoldingsInfo();
+    renderPresets();
+    updateTotal();
+    modal.style.display = 'flex';
+  }
+
+  function closeTrade() {
+    document.getElementById('trade-modal').style.display = 'none';
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    const sel  = document.getElementById('trade-portfolio-select');
+    const form = document.getElementById('trade-form');
+
+    function syncFormAction() {
+      if (sel && form && sel.value) form.action = '/portfolios/' + sel.value + '/trades';
+    }
+    sel?.addEventListener('change', syncFormAction);
+    syncFormAction();
+
+    form?.addEventListener('submit', function (e) {
+      const portfolioId = sel?.value;
+      if (!portfolioId) {
+        e.preventDefault();
+        const msg = document.getElementById('trade-msg');
+        msg.textContent = 'Please join a league first to trade.';
+        msg.style.background = 'rgba(246,70,93,0.12)';
+        msg.style.color = '#F6465D';
+        msg.style.display = 'block';
+        return;
+      }
+      this.action = '/portfolios/' + portfolioId + '/trades';
+    });
+  });
+</script>
+<% end %>
+
 <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
 
 <script>
@@ -179,7 +449,7 @@
       basePath.push(high + (close - high) * (i / p3));
   }
 
-  const ticks = [open];
+  const ticks = [];
 
   for (let i = 0; i < basePath.length; i++) {
     const isLast = i === basePath.length - 1;
@@ -198,11 +468,11 @@
   return ticks;
 }
 
-    function playCandle(index, onDone) {
+    function playCandle(index, startTick, onDone) {
       if (index >= historicalData.length) return;
       const candle = historicalData[index];
       const ticks  = generateTicks(candle, STEPS);
-      let tickIndex = 0;
+      let tickIndex = Math.min(startTick || 0, ticks.length - 1);
       const tickInterval = setInterval(() => {
         const currentClose = ticks[tickIndex];
         candleSeries.update({
@@ -223,14 +493,16 @@
     }
 
     let currentIndex = startIndex;
-    function playNext() {
+    const tickWithin = Math.min(Math.floor((elapsed % CANDLE_TOTAL_MS) / TICK_MS), STEPS - 1);
+
+    function playNext(startTick) {
       if (currentIndex >= historicalData.length) return;
-      playCandle(currentIndex, () => {
+      playCandle(currentIndex, startTick || 0, () => {
         currentIndex++;
-        playNext();
+        playNext(0);
       });
     }
-    playNext();
+    playNext(tickWithin);
 
     window.addEventListener('resize', () => {
       chart.applyOptions({
