@@ -1,6 +1,5 @@
 FROM ruby:3.4.7
 
-# Install system dependencies
 RUN apt-get update -qq && \
     apt-get install -y \
     nodejs \
@@ -12,16 +11,14 @@ RUN apt-get update -qq && \
 
 WORKDIR /app
 
-# Install gems first (cached layer)
 COPY Gemfile Gemfile.lock ./
 RUN bundle install
 
-# Copy rest of the app
 COPY . .
 
-# Set up databases
-RUN bin/rails db:prepare RAILS_ENV=development
+# Fix CRLF line endings on all bin/ scripts
+RUN sed -i 's/\r//' bin/*
 
 EXPOSE 3000
 
-CMD ["bin/dev"]
+CMD ["bash", "-c", "bin/rails db:prepare && bin/dev"]

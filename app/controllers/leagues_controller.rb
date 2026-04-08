@@ -3,7 +3,8 @@ class LeaguesController < ApplicationController
   before_action :set_league, only: [ :show, :destroy, :invite ]
 
   def index
-    @leagues = League.all
+    member_league_ids = LeagueMembership.where(user: current_user).select(:league_id)
+    @leagues = League.where(id: member_league_ids)
     @league  = League.new
     @friends = current_user.friends
   end

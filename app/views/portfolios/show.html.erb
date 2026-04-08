@@ -77,7 +77,11 @@
               <% upnl_pct  = holding.average_cost.to_d > 0 ? (upnl / (holding.average_cost.to_d * holding.quantity.to_d) * 100) : 0 %>
               <% upnl_col  = upnl >= 0 ? '#2EBD85' : '#F6465D' %>
               <% upnl_sign = upnl >= 0 ? '+' : '' %>
-              <tr style="border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.15s;"
+              <tr class="holding-row"
+                  data-ticker="<%= holding.stock.ticker %>"
+                  data-avg-cost="<%= holding.average_cost.to_f %>"
+                  data-quantity="<%= holding.quantity.to_f %>"
+                  style="border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.15s;"
                   onmouseover="this.style.background='rgba(255,255,255,0.02)'"
                   onmouseout="this.style.background='transparent'">
                 <td style="padding: 0.85rem 1.5rem;">
@@ -88,13 +92,13 @@
                 </td>
                 <td style="padding: 0.85rem 1rem; text-align: right; color: #EAECEF; font-size: 0.9rem;"><%= number_with_delimiter(holding.quantity.to_i) %></td>
                 <td style="padding: 0.85rem 1rem; text-align: right; color: #929AA5; font-size: 0.9rem;">$<%= number_with_precision(holding.average_cost.to_f, precision: 2, delimiter: ",") %></td>
-                <td style="padding: 0.85rem 1rem; text-align: right; color: #EAECEF; font-size: 0.9rem;">$<%= number_with_precision(holding.market_price.to_f, precision: 2, delimiter: ",") %></td>
-                <td style="padding: 0.85rem 1rem; text-align: right; color: #EAECEF; font-size: 0.9rem; font-weight: 600;">$<%= number_with_precision(holding.market_value.to_f, precision: 2, delimiter: ",") %></td>
-                <td style="padding: 0.85rem 1.5rem; text-align: right;">
-                  <div style="color: <%= upnl_col %>; font-size: 0.88rem; font-weight: 700;">
+                <td class="holding-mkt-price" style="padding: 0.85rem 1rem; text-align: right; color: #EAECEF; font-size: 0.9rem;">$<%= number_with_precision(holding.market_price.to_f, precision: 2, delimiter: ",") %></td>
+                <td class="holding-mkt-value" style="padding: 0.85rem 1rem; text-align: right; color: #EAECEF; font-size: 0.9rem; font-weight: 600;">$<%= number_with_precision(holding.market_value.to_f, precision: 2, delimiter: ",") %></td>
+                <td class="holding-upnl" style="padding: 0.85rem 1.5rem; text-align: right;">
+                  <div class="upnl-amount" style="color: <%= upnl_col %>; font-size: 0.88rem; font-weight: 700;">
                     <%= upnl_sign %>$<%= number_with_precision(upnl.abs, precision: 2, delimiter: ",") %>
                   </div>
-                  <div style="color: <%= upnl_col %>; font-size: 0.7rem; opacity: 0.85;">
+                  <div class="upnl-pct" style="color: <%= upnl_col %>; font-size: 0.7rem; opacity: 0.85;">
                     (<%= upnl_sign %><%= number_with_precision(upnl_pct.abs, precision: 2) %>%)
                   </div>
                 </td>
@@ -148,3 +152,67 @@
 
   </div>
 </div>
+
+<script>
+(function () {
+  var _pollTimer = null;
+
+  function startPolling() {
+    if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+
+    var rows = document.querySelectorAll('tr.holding-row');
+    if (!rows.length) return;
+
+    var tickers = [];
+    rows.forEach(function(r) { tickers.push(r.getAttribute('data-ticker')); });
+    var tickerStr = tickers.join(',');
+
+    function fmt(n) {
+      return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function refresh() {
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', '/stocks/prices?tickers=' + tickerStr);
+      xhr.setRequestHeader('Accept', 'application/json');
+      xhr.onload = function () {
+        if (xhr.status !== 200) return;
+        try { var prices = JSON.parse(xhr.responseText); } catch (e) { return; }
+
+        rows.forEach(function(row) {
+          var ticker  = row.getAttribute('data-ticker');
+          var avgCost = parseFloat(row.getAttribute('data-avg-cost'));
+          var qty     = parseFloat(row.getAttribute('data-quantity'));
+          var price   = prices[ticker];
+          if (!price || price <= 0) return;
+
+          var mktValue = price * qty;
+          var cost     = avgCost * qty;
+          var upnl     = mktValue - cost;
+          var upnlPct  = cost > 0 ? (upnl / cost * 100) : 0;
+          var color    = upnl >= 0 ? '#2EBD85' : '#F6465D';
+          var sign     = upnl >= 0 ? '+' : '';
+
+          row.querySelector('.holding-mkt-price').textContent = '$' + fmt(price);
+          row.querySelector('.holding-mkt-value').textContent = '$' + fmt(mktValue);
+
+          var amtEl = row.querySelector('.upnl-amount');
+          amtEl.textContent = sign + '$' + fmt(Math.abs(upnl));
+          amtEl.style.color = color;
+
+          var pctEl = row.querySelector('.upnl-pct');
+          pctEl.textContent = '(' + sign + fmt(Math.abs(upnlPct)) + '%)';
+          pctEl.style.color = color;
+        });
+      };
+      xhr.send();
+    }
+
+    refresh();
+    _pollTimer = setInterval(refresh, 4000);
+  }
+
+  document.addEventListener('DOMContentLoaded', startPolling);
+  document.addEventListener('turbo:load', startPolling);
+})();
+</script>

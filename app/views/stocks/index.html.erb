@@ -16,17 +16,28 @@
               border-radius: 12px; overflow: hidden;">
 
     <%# Table header %>
-    <div style="display: grid; grid-template-columns: 2rem 1fr 2fr 1fr; gap: 1rem;
+    <div style="display: grid; grid-template-columns: 2rem 1fr 2fr 1fr 1fr 1fr; gap: 1rem;
                 padding: 0.75rem 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.07);">
       <span style="color: #929AA5; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;">#</span>
       <span style="color: #929AA5; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;">Symbol</span>
       <span style="color: #929AA5; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;">Company</span>
+      <span style="color: #929AA5; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; text-align: right;">Price</span>
+      <span style="color: #929AA5; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; text-align: right;">Change</span>
       <span style="color: #929AA5; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; text-align: right;">Chart</span>
     </div>
 
     <% if @stocks.any? %>
       <% @stocks.each_with_index do |stock, i| %>
-        <div style="display: grid; grid-template-columns: 2rem 1fr 2fr 1fr; gap: 1rem;
+        <% day_open = @day_open[stock.ticker].to_f %>
+        <% cur      = stock.last_price.to_f %>
+        <% chg      = day_open > 0 ? cur - day_open : 0 %>
+        <% chg_pct  = day_open > 0 ? (chg / day_open * 100) : 0 %>
+        <% chg_col  = chg >= 0 ? '#2EBD85' : '#F6465D' %>
+        <% chg_sign = chg >= 0 ? '+' : '' %>
+
+        <div data-ticker="<%= stock.ticker %>"
+             data-day-open="<%= day_open %>"
+             style="display: grid; grid-template-columns: 2rem 1fr 2fr 1fr 1fr 1fr; gap: 1rem;
                     padding: 0.9rem 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.04);
                     align-items: center; transition: background 0.15s;"
              onmouseover="this.style.background='rgba(255,255,255,0.03)'"
@@ -63,7 +74,22 @@
             <span style="color: #929AA5; font-size: 0.875rem;"><%= stock.company_name %></span>
           <% end %>
 
-          <%# View chart link — turbo disabled so the chart script runs fresh %>
+          <%# Price cell %>
+          <div class="stock-price" style="text-align: right; color: #EAECEF; font-size: 0.9rem; font-weight: 700;">
+            <%= cur > 0 ? "$#{"%.2f" % cur}" : "—" %>
+          </div>
+
+          <%# Change cell %>
+          <div class="stock-change" style="text-align: right; font-size: 0.82rem; font-weight: 600; color: <%= chg_col %>;">
+            <% if day_open > 0 %>
+              <div class="chg-abs"><%= chg_sign %><%= "%.2f" % chg.abs %></div>
+              <div class="chg-pct" style="font-size: 0.72rem; opacity: 0.85;">(<%= chg_sign %><%= "%.2f" % chg_pct.abs %>%)</div>
+            <% else %>
+              —
+            <% end %>
+          </div>
+
+          <%# View chart link %>
           <div style="text-align: right;">
             <%= link_to "View Chart →", stock_path(stock),
                 style: "color: #14B8A6; text-decoration: none; font-size: 0.82rem; font-weight: 600;
@@ -84,3 +110,65 @@
   </div>
 
 </div>
+
+<script>
+(function () {
+  var _timer = null;
+
+  function startPolling() {
+    if (_timer) { clearInterval(_timer); _timer = null; }
+
+    var rows = document.querySelectorAll('[data-ticker][data-day-open]');
+    if (!rows.length) return;
+
+    var tickers = [];
+    rows.forEach(function(r) { tickers.push(r.getAttribute('data-ticker')); });
+    var tickerStr = tickers.join(',');
+
+    function fmt2(n) {
+      return Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function refresh() {
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', '/stocks/prices?tickers=' + tickerStr);
+      xhr.setRequestHeader('Accept', 'application/json');
+      xhr.onload = function () {
+        if (xhr.status !== 200) return;
+        try { var prices = JSON.parse(xhr.responseText); } catch (e) { return; }
+
+        rows.forEach(function(row) {
+          var ticker  = row.getAttribute('data-ticker');
+          var dayOpen = parseFloat(row.getAttribute('data-day-open'));
+          var price   = prices[ticker];
+          if (!price || price <= 0) return;
+
+          var chg     = dayOpen > 0 ? price - dayOpen : 0;
+          var chgPct  = dayOpen > 0 ? (chg / dayOpen * 100) : 0;
+          var color   = chg >= 0 ? '#2EBD85' : '#F6465D';
+          var sign    = chg >= 0 ? '+' : '-';
+
+          var priceEl = row.querySelector('.stock-price');
+          if (priceEl) priceEl.textContent = '$' + fmt2(price);
+
+          var changeEl = row.querySelector('.stock-change');
+          if (changeEl && dayOpen > 0) {
+            changeEl.style.color = color;
+            var absEl = changeEl.querySelector('.chg-abs');
+            var pctEl = changeEl.querySelector('.chg-pct');
+            if (absEl) absEl.textContent = sign + fmt2(chg);
+            if (pctEl) pctEl.textContent = '(' + sign + fmt2(chgPct) + '%)';
+          }
+        });
+      };
+      xhr.send();
+    }
+
+    refresh();
+    _timer = setInterval(refresh, 4000);
+  }
+
+  document.addEventListener('DOMContentLoaded', startPolling);
+  document.addEventListener('turbo:load', startPolling);
+})();
+</script>

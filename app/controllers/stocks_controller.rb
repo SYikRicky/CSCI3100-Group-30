@@ -1,6 +1,20 @@
 class StocksController < ApplicationController
+  MARKET_OPEN_INDEX = 49  # INITIAL_COUNT - 1; the price shown when the sim "opens"
+
   def index
     @stocks = Stock.all
+    # Day-open reference price per ticker (the 50th snapshot = index 49)
+    @day_open = {}
+    Stock.find_each do |stock|
+      snap = PriceSnapshot.where(stock_id: stock.id).order(:recorded_at).offset(MARKET_OPEN_INDEX).first
+      @day_open[stock.ticker] = snap&.close.to_f
+    end
+  end
+
+  def prices
+    tickers = params[:tickers].to_s.split(",").map(&:strip).map(&:upcase)
+    stocks  = tickers.any? ? Stock.where(ticker: tickers) : Stock.all
+    render json: stocks.each_with_object({}) { |s, h| h[s.ticker] = s.last_price.to_f }
   end
 
   def show

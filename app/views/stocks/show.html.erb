@@ -449,7 +449,7 @@
       basePath.push(high + (close - high) * (i / p3));
   }
 
-  const ticks = [open];
+  const ticks = [];
 
   for (let i = 0; i < basePath.length; i++) {
     const isLast = i === basePath.length - 1;
@@ -468,11 +468,11 @@
   return ticks;
 }
 
-    function playCandle(index, onDone) {
+    function playCandle(index, startTick, onDone) {
       if (index >= historicalData.length) return;
       const candle = historicalData[index];
       const ticks  = generateTicks(candle, STEPS);
-      let tickIndex = 0;
+      let tickIndex = Math.min(startTick || 0, ticks.length - 1);
       const tickInterval = setInterval(() => {
         const currentClose = ticks[tickIndex];
         candleSeries.update({
@@ -493,14 +493,16 @@
     }
 
     let currentIndex = startIndex;
-    function playNext() {
+    const tickWithin = Math.min(Math.floor((elapsed % CANDLE_TOTAL_MS) / TICK_MS), STEPS - 1);
+
+    function playNext(startTick) {
       if (currentIndex >= historicalData.length) return;
-      playCandle(currentIndex, () => {
+      playCandle(currentIndex, startTick || 0, () => {
         currentIndex++;
-        playNext();
+        playNext(0);
       });
     }
-    playNext();
+    playNext(tickWithin);
 
     window.addEventListener('resize', () => {
       chart.applyOptions({

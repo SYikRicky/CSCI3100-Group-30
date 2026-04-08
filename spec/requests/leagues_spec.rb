@@ -141,7 +141,7 @@ RSpec.describe "/leagues", type: :request do
       it "creates a membership and portfolio for the invitee" do
         expect {
           post leagues_url, params: { league: valid_attributes.merge(invitee_identifiers_raw: invitee.email) }
-        }.to change(LeagueMembership, :count).by(1)
+        }.to change(LeagueMembership, :count).by(2) # owner + invitee
         expect(Portfolio.exists?(user: invitee, league: League.last)).to be true
       end
 
@@ -159,7 +159,7 @@ RSpec.describe "/leagues", type: :request do
       it "creates a membership for the invitee" do
         expect {
           post leagues_url, params: { league: valid_attributes.merge(invitee_identifiers_raw: invitee.display_name) }
-        }.to change(LeagueMembership, :count).by(1)
+        }.to change(LeagueMembership, :count).by(2) # owner + invitee
       end
     end
 
@@ -167,7 +167,7 @@ RSpec.describe "/leagues", type: :request do
       it "creates a membership for each invitee" do
         expect {
           post leagues_url, params: { league: valid_attributes.merge(invitee_identifiers_raw: "#{invitee.email},#{invitee2.email}") }
-        }.to change(LeagueMembership, :count).by(2)
+        }.to change(LeagueMembership, :count).by(3) # owner + 2 invitees
       end
 
       it "creates a notification for each invitee" do

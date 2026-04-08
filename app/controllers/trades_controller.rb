@@ -15,7 +15,7 @@ class TradesController < ApplicationController
     ).call
 
     respond_to do |format|
-      format.html { flash[:notice] = "Trade executed successfully"; redirect_to portfolio_path(@portfolio) }
+      format.html { flash[:notice] = "Trade executed successfully (Virtual Trading Only)"; redirect_to portfolio_path(@portfolio) }
       format.json { render json: { notice: "#{trade_params[:action].capitalize} #{trade.quantity} × #{stock.ticker} executed." } }
     end
   rescue TradingService::Error => e
