@@ -19,7 +19,7 @@ class LeaguesController < ApplicationController
       pnl   = tv - starting
       pnl_pct = starting > 0 ? (pnl / starting * 100).round(2) : 0
       { user: p.user, portfolio: p, total_value: tv, pnl: pnl, pnl_pct: pnl_pct }
-    end.sort_by { |e| [-e[:total_value], e[:user].id == current_user.id ? 0 : 1] }
+    end.sort_by { |e| [ -e[:total_value], e[:user].id == current_user.id ? 0 : 1 ] }
   end
 
   def invite
