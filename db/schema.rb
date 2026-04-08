@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_07_100000) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_08_100000) do
   create_table "friendships", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.integer "friend_id", null: false
@@ -127,7 +127,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_07_100000) do
     t.decimal "quantity"
     t.string "status", default: "filled", null: false
     t.integer "stock_id", null: false
+    t.decimal "stop_loss", precision: 12, scale: 4
     t.decimal "stop_price", precision: 12, scale: 4
+    t.decimal "take_profit", precision: 12, scale: 4
     t.datetime "updated_at", null: false
     t.index ["portfolio_id"], name: "index_trades_on_portfolio_id"
     t.index ["stock_id"], name: "index_trades_on_stock_id"

@@ -14,7 +14,9 @@ class TradesController < ApplicationController
       quantity: trade_params[:quantity],
       order_type: trade_params[:order_type] || "market",
       limit_price: trade_params[:limit_price],
-      stop_price: trade_params[:stop_price]
+      stop_price: trade_params[:stop_price],
+      take_profit: trade_params[:take_profit],
+      stop_loss: trade_params[:stop_loss]
     ).call
 
     msg = if trade.pending?
@@ -29,6 +31,14 @@ class TradesController < ApplicationController
     end
   rescue TradingService::Error => e
     respond_with_error(e.message)
+  end
+
+  def update
+    trade = @portfolio.trades.find(params[:id])
+    trade.update!(update_params)
+    render json: { notice: "Order updated", trade: trade_json(trade) }
+  rescue ActiveRecord::RecordInvalid => e
+    render json: { error: e.message }, status: :unprocessable_entity
   end
 
   def cancel
@@ -48,7 +58,12 @@ class TradesController < ApplicationController
   end
 
   def trade_params
-    params.require(:trade).permit(:ticker, :action, :quantity, :order_type, :limit_price, :stop_price)
+    params.require(:trade).permit(:ticker, :action, :quantity, :order_type,
+                                  :limit_price, :stop_price, :take_profit, :stop_loss)
+  end
+
+  def update_params
+    params.require(:trade).permit(:take_profit, :stop_loss)
   end
 
   def trade_json(trade)
@@ -60,9 +75,12 @@ class TradesController < ApplicationController
       price_at_trade: trade.price_at_trade&.to_f,
       limit_price: trade.limit_price&.to_f,
       stop_price: trade.stop_price&.to_f,
+      take_profit: trade.take_profit&.to_f,
+      stop_loss: trade.stop_loss&.to_f,
       status: trade.status,
       ticker: trade.stock.ticker,
-      executed_at: trade.executed_at
+      executed_at: trade.executed_at,
+      portfolio_id: trade.portfolio_id
     }
   end
 

@@ -60,5 +60,66 @@ RSpec.describe "Trades", type: :request do
       trade = Trade.order(:created_at).last
       expect(trade.price_at_trade.to_d).to eq(stock.last_price.to_d)
     end
+
+    context "with take_profit and stop_loss" do
+      it "saves TP and SL on the trade" do
+        post portfolio_trades_path(portfolio), params: {
+          trade: { ticker: stock.ticker, action: "buy", quantity: 1,
+                   take_profit: "110.00", stop_loss: "95.00" }
+        }
+
+        trade = Trade.order(:created_at).last
+        expect(trade.take_profit.to_f).to eq(110.0)
+        expect(trade.stop_loss.to_f).to eq(95.0)
+      end
+    end
+
+    context "with JSON format" do
+      it "returns trade data including TP/SL" do
+        post portfolio_trades_path(portfolio), params: {
+          trade: { ticker: stock.ticker, action: "buy", quantity: 1,
+                   take_profit: "110.00", stop_loss: "95.00" }
+        }, headers: { "Accept" => "application/json" }
+
+        expect(response).to have_http_status(:ok)
+        json = JSON.parse(response.body)
+        expect(json["trade"]["take_profit"]).to eq(110.0)
+        expect(json["trade"]["stop_loss"]).to eq(95.0)
+        expect(json["trade"]["status"]).to eq("filled")
+        expect(json["trade"]["ticker"]).to eq("AAPL")
+        expect(json["trade"]["portfolio_id"]).to eq(portfolio.id)
+      end
+
+      it "returns pending status for limit orders" do
+        post portfolio_trades_path(portfolio), params: {
+          trade: { ticker: stock.ticker, action: "buy", quantity: 1,
+                   order_type: "limit", limit_price: "95.00" }
+        }, headers: { "Accept" => "application/json" }
+
+        expect(response).to have_http_status(:ok)
+        json = JSON.parse(response.body)
+        expect(json["trade"]["status"]).to eq("pending")
+        expect(json["trade"]["order_type"]).to eq("limit")
+        expect(json["trade"]["limit_price"]).to eq(95.0)
+      end
+    end
+  end
+
+  describe "PATCH /portfolios/:portfolio_id/trades/:id" do
+    let!(:trade) do
+      create(:trade, portfolio: portfolio, stock: stock,
+             take_profit: 110.0, stop_loss: 90.0)
+    end
+
+    it "updates take_profit and stop_loss" do
+      patch portfolio_trade_path(portfolio, trade), params: {
+        trade: { take_profit: "120.00", stop_loss: "85.00" }
+      }, headers: { "Accept" => "application/json" }
+
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+      expect(json["trade"]["take_profit"]).to eq(120.0)
+      expect(json["trade"]["stop_loss"]).to eq(85.0)
+    end
   end
 end

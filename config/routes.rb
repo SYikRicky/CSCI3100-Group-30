@@ -18,7 +18,7 @@ Rails.application.routes.draw do
 
   resources :friendships, only: [ :index, :create, :update, :destroy ]
   resources :portfolios, only: [ :show ] do
-    resources :trades, only: [ :create ] do
+    resources :trades, only: [ :create, :update ] do
       member { patch :cancel }
     end
   end

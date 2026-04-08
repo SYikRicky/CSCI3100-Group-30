@@ -2,7 +2,8 @@ class TradingService
   class Error < StandardError; end
 
   def initialize(portfolio:, stock:, action:, quantity:, order_type: "market",
-                 limit_price: nil, stop_price: nil, executed_at: Time.current)
+                 limit_price: nil, stop_price: nil, take_profit: nil,
+                 stop_loss: nil, executed_at: Time.current)
     @portfolio = portfolio
     @stock = stock
     @action = action.to_s
@@ -11,6 +12,8 @@ class TradingService
     @order_type = order_type.to_s
     @limit_price = limit_price ? BigDecimal(limit_price.to_s) : nil
     @stop_price = stop_price ? BigDecimal(stop_price.to_s) : nil
+    @take_profit = take_profit.present? ? BigDecimal(take_profit.to_s) : nil
+    @stop_loss = stop_loss.present? ? BigDecimal(stop_loss.to_s) : nil
     @executed_at = executed_at
   end
 
@@ -27,7 +30,8 @@ class TradingService
   private
 
   attr_reader :portfolio, :stock, :action, :quantity, :market_price,
-              :order_type, :limit_price, :stop_price, :executed_at
+              :order_type, :limit_price, :stop_price, :take_profit,
+              :stop_loss, :executed_at
 
   def validate_inputs!
     raise Error, "action must be buy or sell" unless %w[buy sell].include?(action)
@@ -56,7 +60,9 @@ class TradingService
         price_at_trade: market_price,
         executed_at: executed_at,
         order_type: "market",
-        status: "filled"
+        status: "filled",
+        take_profit: take_profit,
+        stop_loss: stop_loss
       )
 
       PortfolioValuationService.new(portfolio: portfolio, valued_at: executed_at).call
@@ -85,7 +91,9 @@ class TradingService
       order_type: order_type,
       limit_price: limit_price,
       stop_price: stop_price,
-      status: "pending"
+      status: "pending",
+      take_profit: take_profit,
+      stop_loss: stop_loss
     )
   end
 
