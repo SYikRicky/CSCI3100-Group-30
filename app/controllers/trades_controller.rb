@@ -7,19 +7,79 @@ class TradesController < ApplicationController
       return respond_with_error("Stock not found")
     end
 
+    # Sync stock price in-memory (no DB write) so TradingService uses the simulated price
+    current_price = params[:current_price].to_f if params[:current_price].present?
+    if current_price && current_price > 0
+      stock.last_price = current_price
+    end
+
     trade = TradingService.new(
       portfolio: @portfolio,
       stock: stock,
       action: trade_params[:action],
-      quantity: trade_params[:quantity]
+      quantity: trade_params[:quantity],
+      order_type: trade_params[:order_type] || "market",
+      limit_price: trade_params[:limit_price],
+      stop_price: trade_params[:stop_price],
+      take_profit: trade_params[:take_profit],
+      stop_loss: trade_params[:stop_loss]
     ).call
 
+    msg = if trade.pending?
+            "#{trade.order_type.capitalize} order placed (#{trade_params[:action]} #{trade.quantity.to_i} × #{stock.ticker})"
+          else
+            "Trade executed successfully (Virtual Trading Only)"
+          end
+
     respond_to do |format|
-      format.html { flash[:notice] = "Trade executed successfully (Virtual Trading Only)"; redirect_to portfolio_path(@portfolio) }
-      format.json { render json: { notice: "#{trade_params[:action].capitalize} #{trade.quantity} × #{stock.ticker} executed." } }
+      format.html { flash[:notice] = msg; redirect_to portfolio_path(@portfolio) }
+      format.json { render json: { notice: msg, trade: trade_json(trade),
+                                    cash_balance: @portfolio.reload.cash_balance.to_f,
+                                    holding: holding_json(@portfolio, trade.stock) } }
     end
   rescue TradingService::Error => e
     respond_with_error(e.message)
+  end
+
+  def update
+    trade = @portfolio.trades.find(params[:id])
+    trade.update!(update_params)
+    render json: { notice: "Order updated", trade: trade_json(trade) }
+  rescue ActiveRecord::RecordInvalid => e
+    render json: { error: e.message }, status: :unprocessable_entity
+  end
+
+  def check_tp_sl
+    stock = Stock.find_by(ticker: params[:ticker].to_s.upcase)
+    return render(json: { triggered: [], filled_orders: [] }) unless stock
+
+    current_price = params[:current_price].present? ? params[:current_price].to_f : nil
+
+    # Check TP/SL on existing positions
+    tp_sl_trades = CheckTpSlService.new(stock: stock, current_price: current_price).call
+
+    # Fill pending limit/stop orders
+    filled_orders = FillPendingOrdersService.new(stock: stock, current_price: current_price).call
+
+    @portfolio.reload
+    render json: {
+      triggered: tp_sl_trades.map { |t| trade_json(t) },
+      filled_orders: filled_orders.map { |t| trade_json(t) },
+      cash_balance: @portfolio.cash_balance.to_f,
+      holding: holding_json(@portfolio, stock)
+    }
+  rescue TradingService::Error => e
+    render json: { triggered: [], filled_orders: [], error: e.message }, status: :ok
+  end
+
+  def cancel
+    trade = @portfolio.trades.pending.find(params[:id])
+    trade.update!(status: "cancelled")
+
+    respond_to do |format|
+      format.html { flash[:notice] = "Order cancelled"; redirect_to portfolio_path(@portfolio) }
+      format.json { render json: { notice: "Order cancelled" } }
+    end
   end
 
   private
@@ -29,7 +89,37 @@ class TradesController < ApplicationController
   end
 
   def trade_params
-    params.expect(trade: [ :ticker, :action, :quantity ])
+    params.require(:trade).permit(:ticker, :action, :quantity, :order_type,
+                                  :limit_price, :stop_price, :take_profit, :stop_loss)
+  end
+
+  def update_params
+    params.require(:trade).permit(:take_profit, :stop_loss)
+  end
+
+  def trade_json(trade)
+    {
+      id: trade.id,
+      action: trade.action,
+      order_type: trade.order_type,
+      quantity: trade.quantity.to_f,
+      price_at_trade: trade.price_at_trade&.to_f,
+      limit_price: trade.limit_price&.to_f,
+      stop_price: trade.stop_price&.to_f,
+      take_profit: trade.take_profit&.to_f,
+      stop_loss: trade.stop_loss&.to_f,
+      status: trade.status,
+      ticker: trade.stock.ticker,
+      executed_at: trade.executed_at,
+      portfolio_id: trade.portfolio_id,
+      direction: trade.action == "buy" ? "long" : "short"
+    }
+  end
+
+  def holding_json(portfolio, stock)
+    h = portfolio.holdings.find_by(stock: stock)
+    return nil unless h
+    { quantity: h.quantity.to_f, average_cost: h.average_cost.to_f, direction: h.direction }
   end
 
   def respond_with_error(message)

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_02_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_08_173147) do
   create_table "friendships", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.integer "friend_id", null: false
@@ -25,11 +25,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_02_120000) do
   create_table "holdings", force: :cascade do |t|
     t.decimal "average_cost", precision: 15, scale: 4, null: false
     t.datetime "created_at", null: false
+    t.string "direction", default: "long", null: false
     t.integer "portfolio_id", null: false
     t.decimal "quantity", precision: 15, scale: 4, null: false
     t.integer "stock_id", null: false
     t.datetime "updated_at", null: false
-    t.index ["portfolio_id", "stock_id"], name: "index_holdings_on_portfolio_id_and_stock_id", unique: true
+    t.index ["portfolio_id", "stock_id", "direction"], name: "index_holdings_on_portfolio_id_and_stock_id_and_direction", unique: true
     t.index ["portfolio_id"], name: "index_holdings_on_portfolio_id"
     t.index ["stock_id"], name: "index_holdings_on_stock_id"
   end
@@ -120,10 +121,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_02_120000) do
     t.string "action"
     t.datetime "created_at", null: false
     t.datetime "executed_at"
+    t.decimal "limit_price", precision: 12, scale: 4
+    t.string "order_type", default: "market", null: false
     t.integer "portfolio_id", null: false
     t.decimal "price_at_trade"
     t.decimal "quantity"
+    t.string "status", default: "filled", null: false
     t.integer "stock_id", null: false
+    t.decimal "stop_loss", precision: 12, scale: 4
+    t.decimal "stop_price", precision: 12, scale: 4
+    t.decimal "take_profit", precision: 12, scale: 4
     t.datetime "updated_at", null: false
     t.index ["portfolio_id"], name: "index_trades_on_portfolio_id"
     t.index ["stock_id"], name: "index_trades_on_stock_id"

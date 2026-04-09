@@ -4,9 +4,7 @@ Rails.application.routes.draw do
   devise_for :users
 
   resources :stocks, only: [ :index, :show ] do
-    collection do
-      get :prices
-    end
+    member { get :ohlcv }
   end
   resources :leagues, only: [ :index, :show, :new, :create, :destroy ] do
     member do
@@ -20,7 +18,10 @@ Rails.application.routes.draw do
 
   resources :friendships, only: [ :index, :create, :update, :destroy ]
   resources :portfolios, only: [ :show ] do
-    resources :trades, only: [ :create ]
+    resources :trades, only: [ :create, :update ] do
+      member { patch :cancel }
+      collection { post :check_tp_sl }
+    end
   end
 
   root to: "home#index"

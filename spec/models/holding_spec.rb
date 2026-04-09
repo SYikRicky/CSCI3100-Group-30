@@ -11,7 +11,7 @@ RSpec.describe Holding, type: :model do
 
     it { should validate_numericality_of(:quantity).is_greater_than(0) }
     it { should validate_numericality_of(:average_cost).is_greater_than(0) }
-    it { should validate_uniqueness_of(:stock_id).scoped_to(:portfolio_id) }
+    it { should validate_uniqueness_of(:stock_id).scoped_to(:portfolio_id, :direction) }
   end
 
   describe "#market_value" do
