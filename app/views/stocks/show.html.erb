@@ -1312,7 +1312,7 @@
     const historical = data;
     const recent     = data.slice(Math.max(0, data.length - 100));
 
-    _firstClose = historical[0].close;
+    _firstClose = historical[historical.length - 1].close;
     _cursorPrice = historical[historical.length - 1].close;
     updatePriceDisplay(_cursorPrice);
 

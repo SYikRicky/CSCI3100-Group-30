@@ -4,7 +4,8 @@ Rails.application.routes.draw do
   devise_for :users
 
   resources :stocks, only: [ :index, :show ] do
-    member { get :ohlcv }
+    member     { get :ohlcv }
+    collection { get :prices }
   end
   resources :leagues, only: [ :index, :show, :new, :create, :destroy ] do
     member do
