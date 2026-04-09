@@ -1,13 +1,12 @@
 class StocksController < ApplicationController
   before_action :set_stock, only: [ :show, :ohlcv ]
-  MARKET_OPEN_INDEX = 49
   def index
     @stocks = Stock.all
-    # Day-open reference price per ticker (the 50th snapshot = index 49)
+    # Session-open reference: open of the latest snapshot per ticker
     @day_open = {}
     Stock.find_each do |stock|
-      snap = PriceSnapshot.where(stock_id: stock.id).order(:recorded_at).offset(MARKET_OPEN_INDEX).first
-      @day_open[stock.ticker] = snap&.close.to_f
+      snap = PriceSnapshot.where(stock_id: stock.id).order(:recorded_at).last
+      @day_open[stock.ticker] = snap&.open.to_f
     end
   end
 

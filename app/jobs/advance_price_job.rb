@@ -1,39 +1,76 @@
 class AdvancePriceJob < ApplicationJob
   queue_as :default
 
-  # Must match the constants in stocks/show.html.erb
-  STEPS           = 60
-  TICK_MS         = 1000
-  CANDLE_GAP_MS   = 0
-  CANDLE_TOTAL_MS = (STEPS * TICK_MS) + CANDLE_GAP_MS  # 60_000 ms = 1 minute per candle
-  INITIAL_COUNT   = 38560  # ~2023-06-01 starting point
+  LOOKBACK    = 100  # candles used to calibrate GBM
+  TICKS       = 60   # sub-ticks per 1-minute candle (matches SUB_TICK_MS=500 × 120 ≈ 60s)
 
   def perform
-    server_start_ms = Rails.application.config.server_start_time.to_i * 1000
-    elapsed_ms      = (Time.current.to_f * 1000).to_i - server_start_ms
-    skip_count      = (elapsed_ms / CANDLE_TOTAL_MS).floor
-    now             = Time.current
+    now = Time.current
 
-    # Batch all reads first, then do a single short transaction for writes
-    # to minimize SQLite lock duration
-    updates = []
     Stock.find_each do |stock|
-      snapshots = PriceSnapshot.where(stock_id: stock.id)
-                               .order(:recorded_at)
-                               .pluck(:close)
+      snaps = PriceSnapshot.where(stock_id: stock.id)
+                           .order(:recorded_at)
+                           .last(LOOKBACK)
+      next if snaps.empty?
 
-      next if snapshots.empty?
+      last_snap  = snaps.last
+      next_time  = last_snap.recorded_at + 1.minute
 
-      current_index = [ INITIAL_COUNT + skip_count - 1, snapshots.length - 1 ].min
-      current_index = [ current_index, 0 ].max
-      updates << { id: stock.id, price: snapshots[current_index] }
+      # Avoid duplicate if job runs twice in the same minute
+      next if PriceSnapshot.exists?(stock_id: stock.id, recorded_at: next_time)
+
+      mu, sigma = calibrate_gbm(snaps)
+      candle    = generate_candle(last_snap.close.to_f, mu, sigma)
+
+      PriceSnapshot.create!(
+        stock_id:    stock.id,
+        recorded_at: next_time,
+        open:        candle[:open],
+        high:        candle[:high],
+        low:         candle[:low],
+        close:       candle[:close],
+        volume:      candle[:volume]
+      )
+
+      stock.update_columns(last_price: candle[:close], last_synced_at: now)
+    end
+  end
+
+  private
+
+  def calibrate_gbm(snaps)
+    closes  = snaps.map { |s| s.close.to_f }
+    returns = closes.each_cons(2).map { |a, b| Math.log(b / a) rescue 0 }
+    return [0.0, 0.012] if returns.length < 2
+
+    n        = returns.length
+    mean     = returns.sum / n
+    variance = returns.map { |r| (r - mean)**2 }.sum / [n - 1, 1].max
+    sigma    = [Math.sqrt(variance), 0.003].max
+    [mean, sigma]
+  end
+
+  def generate_candle(prev_close, mu, sigma)
+    open  = prev_close
+    close = prev_close
+    high  = open
+    low   = open
+    vol   = 0.0
+    dt    = 1.0 / TICKS
+
+    TICKS.times do
+      z     = randn
+      close = close * Math.exp((mu - 0.5 * sigma * sigma) * dt + sigma * Math.sqrt(dt) * z)
+      high  = [high,  close].max
+      low   = [low,   close].min
+      vol  += (z.abs * 800 + 200) * dt
     end
 
-    # Single transaction — holds write lock briefly instead of per-stock
-    ActiveRecord::Base.transaction do
-      updates.each do |u|
-        Stock.where(id: u[:id]).update_all(last_price: u[:price], last_synced_at: now)
-      end
-    end
+    { open: open, high: high, low: low, close: close, volume: vol }
+  end
+
+  def randn
+    u = rand; u = rand while u == 0
+    Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math::PI * rand)
   end
 end
