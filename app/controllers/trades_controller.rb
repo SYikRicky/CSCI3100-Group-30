@@ -7,11 +7,10 @@ class TradesController < ApplicationController
       return respond_with_error("Stock not found")
     end
 
-    # Sync stock price with client's simulated price for accurate execution
+    # Sync stock price in-memory (no DB write) so TradingService uses the simulated price
     current_price = params[:current_price].to_f if params[:current_price].present?
     if current_price && current_price > 0
-      stock.update_column(:last_price, current_price)
-      stock.reload
+      stock.last_price = current_price
     end
 
     trade = TradingService.new(

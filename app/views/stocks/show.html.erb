@@ -476,11 +476,11 @@
     return '$' + Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
-  function getLivePrice() {
+  window.getLivePrice = function () {
     const el  = document.getElementById('live-price');
     const raw = el ? el.textContent.replace('$', '').replace(/,/g, '') : '0';
     return parseFloat(raw) || 0;
-  }
+  };
 
   function selectedPortfolioId() {
     const sel = document.getElementById('trade-portfolio-select');
@@ -836,11 +836,14 @@
 
       const btn = document.getElementById('trade-submit-btn');
       if (btn) { btn.disabled = true; btn.textContent = 'Placing…'; }
+      window._tradeInFlight = true;
+      // Abort any in-flight check_tp_sl request to free the Puma thread
+      if (window._autoCheckController) { window._autoCheckController.abort(); window._autoCheckController = null; window._autoCheckInFlight = false; }
       msgEl.style.display = 'none';
 
       // Build payload explicitly — avoids multipart CSRF-token issues
       const tradePayload = {
-        current_price: _cursorPrice || (_liveCandle ? _liveCandle.close : null),
+        current_price: window.getLivePrice(),
         trade: {
           ticker:      document.querySelector('[name="trade[ticker]"]')?.value || STOCK_TICKER,
           action:      document.getElementById('trade-action-field')?.value,
@@ -853,6 +856,7 @@
         }
       };
 
+      console.log('[Trade] Submitting:', tradePayload);
       fetch('/portfolios/' + portfolioId + '/trades', {
         method: 'POST',
         headers: {
@@ -860,11 +864,14 @@
           'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content,
           'Accept': 'application/json'
         },
-        body: JSON.stringify(tradePayload),
-        signal: AbortSignal.timeout(10000)
+        body: JSON.stringify(tradePayload)
       })
-      .then(r => r.json().catch(() => ({ error: 'Server error (HTTP ' + r.status + ')' })))
+      .then(r => {
+        console.log('[Trade] Response status:', r.status);
+        return r.json().catch(() => ({ error: 'Server error (HTTP ' + r.status + ')' }));
+      })
       .then(data => {
+        console.log('[Trade] Response data:', data);
         if (data.error) {
           msgEl.textContent = data.error;
           msgEl.style.background = 'rgba(246,70,93,0.12)';
@@ -951,13 +958,15 @@
 
         setTimeout(closeTrade, 1500);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error('[Trade] Fetch error:', err);
         msgEl.textContent = 'Network error. Please try again.';
         msgEl.style.background = 'rgba(246,70,93,0.12)';
         msgEl.style.color = '#F6465D';
         msgEl.style.display = 'block';
       })
       .finally(() => {
+        window._tradeInFlight = false;
         if (btn) { btn.disabled = false; btn.textContent = _tradeAction === 'buy' ? 'Confirm Buy' : 'Confirm Sell'; }
       });
     });
@@ -989,7 +998,7 @@
   let _gbmMu       = 0;
   let _gbmSigma    = 0.012;
   let _liveCandle  = null;   // candle currently being built
-  const SUB_TICK_MS = 100;   // price tick every 100ms
+  const SUB_TICK_MS = 500;   // price tick every 500ms (slower to reduce SQLite write contention)
 
   // Drawing overlay stack (for undo)
   const _overlayStack = [];
@@ -1044,10 +1053,13 @@
      GBM continuous price engine
      Runs indefinitely — no pause, no stop, no replay
   ════════════════════════════════════════════════════════════════ */
-  let _autoCheckInFlight = false;
+  // Shared across IIFEs via window — used by trade form (IIFE 1) and TP/SL checker (IIFE 2)
+  window._autoCheckInFlight = window._autoCheckInFlight || false;
+  window._autoCheckController = window._autoCheckController || null;
+  window._tradeInFlight = window._tradeInFlight || false;
 
   function checkAutoTpSl(currentPrice) {
-    if (_autoCheckInFlight) return;
+    if (window._autoCheckInFlight || window._tradeInFlight) return;
 
     const pid = document.getElementById('panel-portfolio-select')?.value ||
                 document.getElementById('trade-portfolio-select')?.value;
@@ -1097,20 +1109,22 @@
     if (!needsTpSlCheck && !needsPendingCheck) return;
 
     // ── Server call to execute ──
-    _autoCheckInFlight = true;
+    window._autoCheckInFlight = true;
+    window._autoCheckController = new AbortController();
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
 
     fetch('/portfolios/' + pid + '/trades/check_tp_sl', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken, 'Accept': 'application/json' },
-      body: JSON.stringify({ ticker: STOCK_TICKER, current_price: currentPrice })
+      body: JSON.stringify({ ticker: STOCK_TICKER, current_price: currentPrice }),
+      signal: window._autoCheckController.signal
     })
     .then(r => {
       if (!r.ok) { console.warn('check_tp_sl failed:', r.status); return { triggered: [], filled_orders: [] }; }
       return r.json();
     })
     .then(data => {
-      _autoCheckInFlight = false;
+      window._autoCheckInFlight = false;
 
       // Update cash + holding from server
       if (data.cash_balance !== undefined) PORTFOLIO_CASH[pid] = data.cash_balance;
@@ -1175,7 +1189,7 @@
       if (window.drawPositionLines) window.drawPositionLines();
       if (window.renderPanel) window.renderPanel();
     })
-    .catch(() => { _autoCheckInFlight = false; });
+    .catch(() => { window._autoCheckInFlight = false; });
   }
 
   function showAutoNotification(msg, color) {
@@ -1194,12 +1208,15 @@
 
   function startGBM(seedCandle) {
     stopGBM();
-    const intervalMs     = _currentInterval * 60 * 1000;
-    // Real-time ticks per candle: 1m = 600 ticks × 100ms = 60s, 5m = 3000 ticks = 5min, etc.
-    const ticksPerCandle = Math.round(intervalMs / SUB_TICK_MS);
-    let   _tick          = 0;
+    const displayIntervalMs = _currentInterval * 60 * 1000;
+    // GBM always runs at 1-minute granularity for consistency across timeframes
+    const oneMinMs           = 60 * 1000;
+    const ticksPerOneMin     = Math.round(oneMinMs / SUB_TICK_MS);
+    const subCandlesPerBar   = _currentInterval; // e.g. 5 for 5m, 15 for 15m
+    let   _tick              = 0;
+    let   _subCandleCount    = 0; // how many 1-min sub-candles completed in current display bar
     // Timestamps continue directly after the last historical candle — no gap
-    let   _nextTs        = seedCandle.timestamp + intervalMs;
+    let   _nextTs            = seedCandle.timestamp + displayIntervalMs;
 
     _liveCandle = {
       timestamp: _nextTs,
@@ -1214,22 +1231,28 @@
       if (!chart || !_liveCandle) return;
 
       _tick++;
-      if (_tick >= ticksPerCandle) {
-        // Candle complete — open the next one
-        _tick    = 0;
-        _nextTs += intervalMs;
-        _liveCandle = {
-          timestamp: _nextTs,
-          open:   _liveCandle.close,
-          high:   _liveCandle.close,
-          low:    _liveCandle.close,
-          close:  _liveCandle.close,
-          volume: 0
-        };
+      if (_tick >= ticksPerOneMin) {
+        // One 1-minute sub-candle complete
+        _tick = 0;
+        _subCandleCount++;
+
+        if (_subCandleCount >= subCandlesPerBar) {
+          // Display bar complete — open the next one
+          _subCandleCount = 0;
+          _nextTs += displayIntervalMs;
+          _liveCandle = {
+            timestamp: _nextTs,
+            open:   _liveCandle.close,
+            high:   _liveCandle.close,
+            low:    _liveCandle.close,
+            close:  _liveCandle.close,
+            volume: 0
+          };
+        }
       }
 
-      // GBM step — dt so total variance across one candle equals σ²
-      const dt       = 1 / ticksPerCandle;
+      // GBM step — always at 1-minute scale so prices match across timeframes
+      const dt       = 1 / ticksPerOneMin;
       const z        = randn();
       const newClose = _liveCandle.close *
         Math.exp((_gbmMu - 0.5 * _gbmSigma * _gbmSigma) * dt +
@@ -1238,7 +1261,7 @@
       _liveCandle.close  = newClose;
       _liveCandle.high   = Math.max(_liveCandle.high,  newClose);
       _liveCandle.low    = Math.min(_liveCandle.low,   newClose);
-      _liveCandle.volume += (Math.abs(z) * 800 + 200) * dt * _currentInterval;
+      _liveCandle.volume += (Math.abs(z) * 800 + 200) * dt;
 
       chart.updateData({ ..._liveCandle });
       updatePriceDisplay(_liveCandle.close);
@@ -1259,13 +1282,13 @@
       repositionOrderButtons();
 
       // Re-render panel + position line P&L labels every ~3 seconds
-      if (typeof window.renderPanel === 'function' && (_tick % 30 === 0)) {
+      if (typeof window.renderPanel === 'function' && (_tick % 6 === 0)) {
         window.renderPanel();
         updatePositionLabels(); // update P&L text in-place, no recreate
       }
 
-      // Check TP/SL and pending order auto-execution every ~0.5 second
-      if (_tick % 5 === 0) checkAutoTpSl(liveP);
+      // Check TP/SL and pending order auto-execution every ~1 second
+      if (_tick % 2 === 0) checkAutoTpSl(liveP);
     }, SUB_TICK_MS);
   }
 
@@ -1285,10 +1308,9 @@
 
     if (!chart || data.length === 0) return;
 
-    // Show first 70% as history; last 30% becomes the "seed" for calibration
-    const cutoff     = Math.floor(data.length * 0.7);
-    const historical = data.slice(0, cutoff);
-    const recent     = data.slice(Math.max(0, cutoff - 100), cutoff); // last 100 candles for calibration
+    // Show all data as history; use last 100 candles for GBM calibration
+    const historical = data;
+    const recent     = data.slice(Math.max(0, data.length - 100));
 
     _firstClose = historical[0].close;
     _cursorPrice = historical[historical.length - 1].close;
@@ -1818,12 +1840,11 @@
       if (el) el.value = price.toFixed(2);
     }
     // Pre-fill TP/SL with reasonable defaults:
-    // Buy: TP = +5%, SL = -3%  |  Sell (short): TP = -5%, SL = +3%
     const livePrice = getLivePrice() || price;
     const tpEl = document.getElementById('trade-take-profit');
     const slEl = document.getElementById('trade-stop-loss');
-    if (tpEl && livePrice > 0) tpEl.value = action === 'buy' ? (livePrice * 1.05).toFixed(2) : (livePrice * 0.95).toFixed(2);
-    if (slEl && livePrice > 0) slEl.value = action === 'buy' ? (livePrice * 0.97).toFixed(2) : (livePrice * 1.03).toFixed(2);
+    if (tpEl && livePrice > 0) tpEl.value = action === 'buy' ? (livePrice * 1.01).toFixed(2) : (livePrice * 0.99).toFixed(2);
+    if (slEl && livePrice > 0) slEl.value = action === 'buy' ? (livePrice * 0.99).toFixed(2) : (livePrice * 1.01).toFixed(2);
   };
 
   /* ════════════════════════════════════════════════════════════════
