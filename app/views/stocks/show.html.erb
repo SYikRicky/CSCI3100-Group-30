@@ -317,7 +317,8 @@
         </label>
         <% if @portfolios.any? %>
           <select id="trade-portfolio-select" name="portfolio_id"
-                  class="bnb-input" style="cursor: pointer;" onchange="onPortfolioChange()">
+                  class="bnb-input" onchange="onPortfolioChange()"
+                  style="cursor: pointer; background: #1a1d2e; color: #EAECEF;">
             <% @portfolios.each do |p| %>
               <option value="<%= p.id %>"><%= p.league.name %> — $<%= number_with_precision(p.cash_balance, precision: 2, delimiter: ",") %> cash</option>
             <% end %>
