@@ -14,12 +14,12 @@ RSpec.describe "Portfolios", type: :request do
       expect(response).to be_successful
     end
 
-    it "returns not found for another user's portfolio" do
+    it "allows another user to view a portfolio (leaderboard access)" do
       other_user = create(:user)
       sign_in other_user
 
       get portfolio_path(portfolio)
-      expect(response).to have_http_status(:not_found)
+      expect(response).to be_successful
     end
   end
 end

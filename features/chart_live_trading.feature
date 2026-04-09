@@ -43,7 +43,7 @@ Feature: Live Chart Price Action and Order Management
     Then the JSON response trade status should be "pending"
     And the JSON response trade order_type should be "limit"
 
-  Scenario: Chart JS uses wall-clock candle timing
+  Scenario: Chart JS uses real-time tick-based candle timing
     When I visit the stock chart for "AAPL"
     Then the chart script should not contain a fixed TICKS_PER_CANDLE constant
-    And the chart script should compute candle boundaries from wall-clock time
+    And the chart script should use tick-counting for real-time candle duration

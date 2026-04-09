@@ -12,13 +12,6 @@
     <%= @league.description.presence || "No description." %>
   </p>
 
-  <% if (portfolio = current_user.portfolios.find_by(league: @league)) %>
-    <div style="margin-top: 0.75rem">
-      <%= link_to "View My Portfolio", portfolio_path(portfolio),
-          style: "color: #14B8A6; font-size: 0.82rem; text-decoration: none;",
-          onmouseover: "this.style.color='#5eead4'", onmouseout: "this.style.color='#14B8A6'" %>
-    </div>
-  <% end %>
 
   <%# ── Leaderboard ── %>
   <% if @leaderboard.any? %>
@@ -52,7 +45,10 @@
                 <% if i == 0 %>🥇<% elsif i == 1 %>🥈<% elsif i == 2 %>🥉<% else %><%= i + 1 %><% end %>
               </td>
               <td style="padding: 0.85rem 1rem;">
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <%= link_to portfolio_path(entry[:portfolio]),
+                    style: "display: flex; align-items: center; gap: 0.5rem; text-decoration: none;",
+                    onmouseover: "this.querySelector('.lb-name').style.color='#14B8A6'",
+                    onmouseout:  "this.querySelector('.lb-name').style.color='#{is_me ? '#14B8A6' : '#EAECEF'}'" do %>
                   <div style="width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
                               background: <%= is_me ? 'rgba(20,184,166,0.2)' : 'rgba(99,102,241,0.2)' %>;
                               border: 1px solid <%= is_me ? 'rgba(20,184,166,0.4)' : 'rgba(99,102,241,0.3)' %>;
@@ -61,11 +57,11 @@
                     <%= entry[:user].display_name.first.upcase %>
                   </div>
                   <div>
-                    <div style="color: #EAECEF; font-size: 0.85rem; font-weight: <%= is_me ? '700' : '500' %>;">
-                      <%= entry[:user].display_name %><% if is_me %> <span style="color: #14B8A6; font-size: 0.68rem;">(you)</span><% end %>
+                    <div class="lb-name" style="color: <%= is_me ? '#14B8A6' : '#EAECEF' %>; font-size: 0.85rem; font-weight: <%= is_me ? '700' : '500' %>; transition: color 0.15s;">
+                      <%= entry[:user].display_name %><% if is_me %> <span style="font-size: 0.68rem; opacity: 0.8;">(you)</span><% end %>
                     </div>
                   </div>
-                </div>
+                <% end %>
               </td>
               <td style="padding: 0.85rem 1rem; text-align: right; color: #EAECEF; font-size: 0.88rem; font-weight: 700;">
                 $<%= number_with_precision(entry[:total_value], precision: 2, delimiter: ",") %>

@@ -68,20 +68,25 @@ class TradingService
       PortfolioValuationService.new(portfolio: portfolio, valued_at: executed_at).call
     end
 
-    TradeMailer.confirmation(trade).deliver_later
+    begin
+      TradeMailer.confirmation(trade).deliver_later
+    rescue StandardError => e
+      Rails.logger.warn("Trade mailer failed: #{e.message}")
+    end
     trade
   end
 
   def place_pending_order!
-    # Validate the user could plausibly fill this order
     if action == "buy"
       price = order_type == "limit" ? limit_price : stop_price
       cost = quantity * price
       raise Error, "Insufficient cash balance for this order" if portfolio.cash_balance.to_d < cost
     else
-      holding = portfolio.holdings.find_by(stock: stock)
-      raise Error, "no holdings found for #{stock.ticker}" unless holding
-      raise Error, "insufficient shares to sell" if holding.quantity.to_d < quantity
+      # For sells: allow pending short orders (no holding check needed for shorts)
+      long_holding = portfolio.holdings.find_by(stock: stock, direction: "long")
+      if long_holding && long_holding.quantity.to_d < quantity
+        # Selling more than long — that's fine (will flip to short on fill)
+      end
     end
 
     portfolio.trades.create!(
@@ -97,34 +102,93 @@ class TradingService
     )
   end
 
+  # ── BUY logic ──
+  # 1. If short holding exists → cover short first, then open long with remainder
+  # 2. If no short → open/add to long position
   def process_buy!(price)
-    cost = quantity * price
+    short_holding = portfolio.holdings.find_by(stock: stock, direction: "short")
+
+    if short_holding
+      cover_qty = [quantity, short_holding.quantity.to_d].min
+      remainder = quantity - cover_qty
+
+      # Cover short: costs cash
+      cover_cost = cover_qty * price
+      raise Error, "Insufficient cash balance" if portfolio.cash_balance.to_d < cover_cost
+      portfolio.update!(cash_balance: portfolio.cash_balance.to_d - cover_cost)
+
+      remaining_short = short_holding.quantity.to_d - cover_qty
+      if remaining_short.zero?
+        short_holding.destroy!
+      else
+        short_holding.update!(quantity: remaining_short)
+      end
+
+      # If there's remainder, open a long position
+      if remainder.positive?
+        open_long!(price, remainder)
+      end
+    else
+      open_long!(price, quantity)
+    end
+  end
+
+  # ── SELL logic ──
+  # 1. If long holding exists → close long first, then open short with remainder
+  # 2. If no long → open/add to short position
+  def process_sell!(price)
+    long_holding = portfolio.holdings.find_by(stock: stock, direction: "long")
+
+    if long_holding
+      close_qty = [quantity, long_holding.quantity.to_d].min
+      remainder = quantity - close_qty
+
+      # Close long: receive proceeds
+      proceeds = close_qty * price
+      portfolio.update!(cash_balance: portfolio.cash_balance.to_d + proceeds)
+
+      remaining_long = long_holding.quantity.to_d - close_qty
+      if remaining_long.zero?
+        long_holding.destroy!
+      else
+        long_holding.update!(quantity: remaining_long)
+      end
+
+      # If there's remainder, open a short position
+      if remainder.positive?
+        open_short!(price, remainder)
+      end
+    else
+      open_short!(price, quantity)
+    end
+  end
+
+  def open_long!(price, qty)
+    cost = qty * price
     raise Error, "Insufficient cash balance" if portfolio.cash_balance.to_d < cost
 
     portfolio.update!(cash_balance: portfolio.cash_balance.to_d - cost)
 
-    holding = portfolio.holdings.find_or_initialize_by(stock: stock)
+    holding = portfolio.holdings.find_or_initialize_by(stock: stock, direction: "long")
     current_quantity = holding.quantity.to_d
     current_cost = current_quantity * holding.average_cost.to_d
-    new_quantity = current_quantity + quantity
+    new_quantity = current_quantity + qty
     new_average_cost = (current_cost + cost) / new_quantity
 
     holding.update!(quantity: new_quantity, average_cost: new_average_cost)
   end
 
-  def process_sell!(price)
-    holding = portfolio.holdings.find_by(stock: stock)
-    raise Error, "no holdings found for #{stock.ticker}" unless holding
-    raise Error, "insufficient shares to sell" if holding.quantity.to_d < quantity
-
-    proceeds = quantity * price
+  def open_short!(price, qty)
+    # Short sell: receive proceeds upfront
+    proceeds = qty * price
     portfolio.update!(cash_balance: portfolio.cash_balance.to_d + proceeds)
 
-    remaining_quantity = holding.quantity.to_d - quantity
-    if remaining_quantity.zero?
-      holding.destroy!
-    else
-      holding.update!(quantity: remaining_quantity)
-    end
+    holding = portfolio.holdings.find_or_initialize_by(stock: stock, direction: "short")
+    current_quantity = holding.quantity.to_d
+    current_cost = current_quantity * holding.average_cost.to_d
+    new_quantity = current_quantity + qty
+    new_average_cost = (current_cost + proceeds) / new_quantity
+
+    holding.update!(quantity: new_quantity, average_cost: new_average_cost)
   end
 end

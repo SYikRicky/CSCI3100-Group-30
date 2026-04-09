@@ -4,5 +4,6 @@ FactoryBot.define do
     association :stock
     quantity { 10 }
     average_cost { 100.0 }
+    direction { "long" }
   end
 end

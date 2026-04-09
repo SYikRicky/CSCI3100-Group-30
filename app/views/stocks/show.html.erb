@@ -90,8 +90,8 @@
     </button>
   <% end %>
   <div style="width: 32px; height: 1px; background: rgba(255,255,255,0.1); margin: 0.1rem 0;"></div>
-  <button onclick="chart && chart.removeOverlay(); _overlayStack.length = 0;"
-          title="Clear drawings"
+  <button onclick="if(chart && _overlayStack.length){ _overlayStack.forEach(id=>{try{chart.removeOverlay(id)}catch(_){}}); _overlayStack.length=0; }"
+          title="Clear drawings (keeps order lines)"
           style="width: 32px; height: 32px; border-radius: 6px;
                  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
                  color: #F6465D; font-size: 0.8rem; cursor: pointer;
@@ -104,6 +104,7 @@
 <%# ── Chart (above trading panel) ── %>
 <div id="chart-container"
      style="position: fixed; top: 120px; left: 50px; right: 0; bottom: 240px; z-index: 1;"></div>
+<div id="chart-order-buttons" style="position: fixed; right: 60px; top: 120px; bottom: 240px; z-index: 10; pointer-events: none;"></div>
 
 <%# ── Right-click context menu ── %>
 <div id="chart-context-menu"
@@ -483,12 +484,12 @@
 
   function selectedPortfolioId() {
     const sel = document.getElementById('trade-portfolio-select');
-    return sel ? sel.value : null;
+    return sel && sel.value ? String(sel.value) : null;
   }
 
   function panelPortfolioId() {
     const sel = document.getElementById('panel-portfolio-select');
-    return sel ? sel.value : (selectedPortfolioId());
+    return sel && sel.value ? String(sel.value) : selectedPortfolioId();
   }
 
   /* ── Panel tab switching ── */
@@ -510,6 +511,8 @@
     const modalSel = document.getElementById('trade-portfolio-select');
     if (modalSel) modalSel.value = pid;
     renderPanel();
+    if (window.renderOrderOverlays) window.renderOrderOverlays();
+    if (window.drawPositionLines) window.drawPositionLines();
   };
 
   /* ── Render panel data ── */
@@ -527,17 +530,20 @@
     let totalPnl = 0;
 
     holdings.forEach(h => {
+      const isShort = h.direction === 'short';
       const mktVal = h.quantity * h.current_price;
       const cost   = h.quantity * h.average_cost;
-      const pnl    = mktVal - cost;
+      // Short P&L: profit when price drops (entry - current) * qty
+      const pnl    = isShort ? (cost - mktVal) : (mktVal - cost);
       const pnlPct = cost > 0 ? (pnl / cost * 100) : 0;
       holdingsValue += mktVal;
       totalPnl += pnl;
 
+      const dirLabel = isShort ? '<span style="color:#F6465D;font-size:0.65rem;margin-left:4px;">SHORT</span>' : '';
       const tr = document.createElement('tr');
       tr.style.cssText = 'border-bottom: 1px solid rgba(255,255,255,0.04);';
       tr.innerHTML =
-        '<td style="padding:0.35rem 1rem;color:#EAECEF;font-weight:600;">' + h.ticker + '</td>' +
+        '<td style="padding:0.35rem 1rem;color:#EAECEF;font-weight:600;">' + h.ticker + dirLabel + '</td>' +
         '<td style="padding:0.35rem 0.5rem;text-align:right;color:#EAECEF;">' + h.quantity + '</td>' +
         '<td style="padding:0.35rem 0.5rem;text-align:right;color:#929AA5;">' + fmtMoney(h.average_cost) + '</td>' +
         '<td style="padding:0.35rem 0.5rem;text-align:right;color:#EAECEF;">' + fmtMoney(h.current_price) + '</td>' +
@@ -602,6 +608,8 @@
     });
     histEmpty.style.display = history.length === 0 ? '' : 'none';
   }
+  // Expose so the chart IIFE can call it when price moves
+  window.renderPanel = renderPanel;
 
   /* ── Cancel order ── */
   window.cancelOrder = function (tradeId, portfolioId) {
@@ -659,10 +667,15 @@
 
     [25, 50, 75, 100].forEach(pct => {
       let qty = 0;
-      if (_tradeAction === 'sell') {
-        const h = PORTFOLIO_HOLDINGS[pid];
-        qty = Math.floor((h ? h.quantity : 0) * pct / 100);
+      const h = PORTFOLIO_HOLDINGS[pid];
+      if (_tradeAction === 'sell' && h && h.direction === 'long') {
+        // Selling long holdings
+        qty = Math.floor(h.quantity * pct / 100);
+      } else if (_tradeAction === 'buy' && h && h.direction === 'short') {
+        // Covering short holdings
+        qty = Math.floor(h.quantity * pct / 100);
       } else {
+        // Opening new position — based on cash
         const cash = PORTFOLIO_CASH[pid] || 0;
         qty = Math.floor((cash * pct / 100) / price);
       }
@@ -698,15 +711,18 @@
 
     const h = PORTFOLIO_HOLDINGS[pid];
     if (h && h.quantity > 0) {
-      qtyLbl.textContent = 'You own: ' + h.quantity + ' shares';
-      avgLbl.textContent = '· Avg buy-in: $' + h.average_cost.toFixed(2);
-      infoEl.style.display = 'block';
-    } else if (_tradeAction === 'sell') {
-      qtyLbl.textContent = 'You own: 0 shares';
-      avgLbl.textContent = '';
+      if (h.direction === 'short') {
+        qtyLbl.textContent = 'Short: ' + h.quantity + ' shares';
+        avgLbl.textContent = '· Avg entry: $' + h.average_cost.toFixed(2);
+      } else {
+        qtyLbl.textContent = 'You own: ' + h.quantity + ' shares';
+        avgLbl.textContent = '· Avg buy-in: $' + h.average_cost.toFixed(2);
+      }
       infoEl.style.display = 'block';
     } else {
-      infoEl.style.display = 'none';
+      qtyLbl.textContent = 'No position';
+      avgLbl.textContent = '';
+      infoEl.style.display = _tradeAction === 'sell' ? 'block' : 'none';
     }
   }
 
@@ -778,6 +794,12 @@
     if (limitInput) limitInput.value = price > 0 ? price.toFixed(2) : '';
     if (stopInput)  stopInput.value  = price > 0 ? price.toFixed(2) : '';
 
+    // Pre-fill TP/SL with reasonable defaults based on live price
+    const tpEl = document.getElementById('trade-take-profit');
+    const slEl = document.getElementById('trade-stop-loss');
+    if (tpEl && price > 0) tpEl.value = action === 'buy' ? (price * 1.05).toFixed(2) : (price * 0.95).toFixed(2);
+    if (slEl && price > 0) slEl.value = action === 'buy' ? (price * 0.97).toFixed(2) : (price * 1.03).toFixed(2);
+
     updateHoldingsInfo();
     renderPresets();
     updateTotal();
@@ -816,15 +838,32 @@
       if (btn) { btn.disabled = true; btn.textContent = 'Placing…'; }
       msgEl.style.display = 'none';
 
+      // Build payload explicitly — avoids multipart CSRF-token issues
+      const tradePayload = {
+        current_price: _cursorPrice || (_liveCandle ? _liveCandle.close : null),
+        trade: {
+          ticker:      document.querySelector('[name="trade[ticker]"]')?.value || STOCK_TICKER,
+          action:      document.getElementById('trade-action-field')?.value,
+          quantity:    document.getElementById('trade-qty-field')?.value,
+          order_type:  document.getElementById('trade-order-type')?.value || 'market',
+          limit_price: document.getElementById('trade-limit-price')?.value || null,
+          stop_price:  document.getElementById('trade-stop-price')?.value || null,
+          take_profit: document.getElementById('trade-take-profit')?.value || null,
+          stop_loss:   document.getElementById('trade-stop-loss')?.value || null,
+        }
+      };
+
       fetch('/portfolios/' + portfolioId + '/trades', {
         method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content,
           'Accept': 'application/json'
         },
-        body: new FormData(this)
+        body: JSON.stringify(tradePayload),
+        signal: AbortSignal.timeout(10000)
       })
-      .then(r => r.json())
+      .then(r => r.json().catch(() => ({ error: 'Server error (HTTP ' + r.status + ')' })))
       .then(data => {
         if (data.error) {
           msgEl.textContent = data.error;
@@ -842,7 +881,8 @@
 
         if (data.trade) {
           const t = data.trade;
-          const pid = portfolioId;
+          // Always use string key — sel.value is string, Rails JSON integer keys are strings in JS
+          const pid = String(portfolioId);
 
           if (t.status === 'pending') {
             // Pending limit/stop order — add to panel and draw on chart
@@ -855,55 +895,42 @@
             });
             if (window.renderOrderOverlays) window.renderOrderOverlays();
           } else {
-            // Filled market order — draw entry + TP/SL lines on chart
-            if (window.drawTradeLines) window.drawTradeLines(t);
-
             const price = t.price_at_trade || 0;
-            const qty   = t.quantity || 0;
-            const cost  = price * qty;
 
-            // Update local cash
-            if (PORTFOLIO_CASH[pid] !== undefined) {
-              if (t.action === 'buy')  PORTFOLIO_CASH[pid] = Math.max(0, PORTFOLIO_CASH[pid] - cost);
-              if (t.action === 'sell') PORTFOLIO_CASH[pid] += cost;
+            // Update local cash from server response
+            if (data.cash_balance !== undefined) {
+              PORTFOLIO_CASH[pid] = data.cash_balance;
             }
 
-            // Update ALL_HOLDINGS for positions tab + P&L
+            // Update ALL_HOLDINGS using server holding state
             if (!ALL_HOLDINGS[pid]) ALL_HOLDINGS[pid] = [];
-            const existing = ALL_HOLDINGS[pid].find(h => h.ticker === t.ticker);
-            if (t.action === 'buy') {
-              if (existing) {
-                const oldCost = existing.quantity * existing.average_cost;
-                existing.quantity += qty;
-                existing.average_cost = existing.quantity > 0 ? (oldCost + cost) / existing.quantity : 0;
-                existing.current_price = price;
+            const existingIdx = ALL_HOLDINGS[pid].findIndex(h => h.ticker === t.ticker);
+            if (data.holding) {
+              // Server says holding exists — update or add
+              const newH = {
+                ticker: t.ticker, quantity: data.holding.quantity,
+                average_cost: data.holding.average_cost, current_price: price,
+                company: '', stock_id: null, direction: data.holding.direction
+              };
+              if (existingIdx >= 0) {
+                Object.assign(ALL_HOLDINGS[pid][existingIdx], newH);
               } else {
-                ALL_HOLDINGS[pid].push({
-                  ticker: t.ticker, quantity: qty, average_cost: price,
-                  current_price: price, company: '', stock_id: null
-                });
+                ALL_HOLDINGS[pid].push(newH);
               }
             } else {
-              // Sell
-              if (existing) {
-                existing.quantity -= qty;
-                existing.current_price = price;
-                if (existing.quantity <= 0) {
-                  ALL_HOLDINGS[pid] = ALL_HOLDINGS[pid].filter(h => h.ticker !== t.ticker);
-                }
-              }
+              // No holding — position fully closed
+              if (existingIdx >= 0) ALL_HOLDINGS[pid].splice(existingIdx, 1);
             }
 
-            // Also update PORTFOLIO_HOLDINGS (used by presets)
-            if (PORTFOLIO_HOLDINGS[pid]) {
-              const ph = ALL_HOLDINGS[pid].find(h => h.ticker === STOCK_TICKER);
-              if (ph) {
-                PORTFOLIO_HOLDINGS[pid] = { quantity: ph.quantity, average_cost: ph.average_cost };
-              } else {
-                delete PORTFOLIO_HOLDINGS[pid];
-              }
-            } else if (t.action === 'buy' && t.ticker === STOCK_TICKER) {
-              PORTFOLIO_HOLDINGS[pid] = { quantity: qty, average_cost: price };
+            // Update PORTFOLIO_HOLDINGS (used by presets)
+            if (data.holding && t.ticker === STOCK_TICKER) {
+              PORTFOLIO_HOLDINGS[pid] = {
+                quantity: data.holding.quantity,
+                average_cost: data.holding.average_cost,
+                direction: data.holding.direction
+              };
+            } else if (t.ticker === STOCK_TICKER) {
+              delete PORTFOLIO_HOLDINGS[pid];
             }
 
             // Add to trade history
@@ -912,20 +939,25 @@
               id: t.id, ticker: t.ticker, action: t.action,
               order_type: t.order_type, quantity: t.quantity,
               price: t.price_at_trade, status: t.status,
+              take_profit: t.take_profit, stop_loss: t.stop_loss,
               executed_at: t.executed_at, created_at: new Date().toLocaleString()
             });
+
+            // Draw position lines AFTER holdings + history are updated
+            if (window.drawPositionLines) window.drawPositionLines();
           }
           renderPanel();
         }
 
         setTimeout(closeTrade, 1500);
-        if (btn) { btn.disabled = false; btn.textContent = _tradeAction === 'buy' ? 'Confirm Buy' : 'Confirm Sell'; }
       })
       .catch(() => {
         msgEl.textContent = 'Network error. Please try again.';
         msgEl.style.background = 'rgba(246,70,93,0.12)';
         msgEl.style.color = '#F6465D';
         msgEl.style.display = 'block';
+      })
+      .finally(() => {
         if (btn) { btn.disabled = false; btn.textContent = _tradeAction === 'buy' ? 'Confirm Buy' : 'Confirm Sell'; }
       });
     });
@@ -1012,22 +1044,165 @@
      GBM continuous price engine
      Runs indefinitely — no pause, no stop, no replay
   ════════════════════════════════════════════════════════════════ */
+  let _autoCheckInFlight = false;
+
+  function checkAutoTpSl(currentPrice) {
+    if (_autoCheckInFlight) return;
+
+    const pid = document.getElementById('panel-portfolio-select')?.value ||
+                document.getElementById('trade-portfolio-select')?.value;
+    if (!pid) return;
+
+    // ── Client-side quick-check: is there anything to trigger? ──
+    let needsTpSlCheck = false;
+    let needsPendingCheck = false;
+
+    // Check TP/SL
+    const arr = ALL_HOLDINGS[pid] || [];
+    const pos = arr.find(h => h.ticker === STOCK_TICKER);
+    if (pos && pos.quantity > 0) {
+      const history = TRADE_HISTORY[pid];
+      if (Array.isArray(history)) {
+        for (const t of history) {
+          if (t.ticker === STOCK_TICKER && t.status === 'filled') {
+            const tp = t.take_profit ? Number(t.take_profit) : null;
+            const sl = t.stop_loss   ? Number(t.stop_loss)   : null;
+            if (!tp && !sl) break;
+            const isLong = pos.direction !== 'short';
+            if (isLong) {
+              if ((tp && currentPrice >= tp) || (sl && currentPrice <= sl)) needsTpSlCheck = true;
+            } else {
+              if ((tp && currentPrice <= tp) || (sl && currentPrice >= sl)) needsTpSlCheck = true;
+            }
+            break;
+          }
+        }
+      }
+    }
+
+    // Check pending orders
+    const orders = PENDING_ORDERS[pid] || [];
+    for (const o of orders) {
+      if (o.ticker !== STOCK_TICKER) continue;
+      if (o.order_type === 'limit') {
+        if (o.action === 'buy' && currentPrice <= o.limit_price) needsPendingCheck = true;
+        if (o.action === 'sell' && currentPrice >= o.limit_price) needsPendingCheck = true;
+      } else if (o.order_type === 'stop') {
+        if (o.action === 'buy' && currentPrice >= o.stop_price) needsPendingCheck = true;
+        if (o.action === 'sell' && currentPrice <= o.stop_price) needsPendingCheck = true;
+      }
+      if (needsPendingCheck) break;
+    }
+
+    if (!needsTpSlCheck && !needsPendingCheck) return;
+
+    // ── Server call to execute ──
+    _autoCheckInFlight = true;
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+
+    fetch('/portfolios/' + pid + '/trades/check_tp_sl', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken, 'Accept': 'application/json' },
+      body: JSON.stringify({ ticker: STOCK_TICKER, current_price: currentPrice })
+    })
+    .then(r => {
+      if (!r.ok) { console.warn('check_tp_sl failed:', r.status); return { triggered: [], filled_orders: [] }; }
+      return r.json();
+    })
+    .then(data => {
+      _autoCheckInFlight = false;
+
+      // Update cash + holding from server
+      if (data.cash_balance !== undefined) PORTFOLIO_CASH[pid] = data.cash_balance;
+      if (!ALL_HOLDINGS[pid]) ALL_HOLDINGS[pid] = [];
+      const hArr = ALL_HOLDINGS[pid];
+      const existIdx = hArr.findIndex(h => h.ticker === STOCK_TICKER);
+      if (data.holding) {
+        const upd = { ticker: STOCK_TICKER, quantity: data.holding.quantity,
+                      average_cost: data.holding.average_cost, direction: data.holding.direction,
+                      current_price: currentPrice, company: '', stock_id: null };
+        if (existIdx >= 0) Object.assign(hArr[existIdx], upd);
+        else hArr.push(upd);
+        PORTFOLIO_HOLDINGS[pid] = { quantity: data.holding.quantity, average_cost: data.holding.average_cost, direction: data.holding.direction };
+      } else {
+        if (existIdx >= 0) hArr.splice(existIdx, 1);
+        delete PORTFOLIO_HOLDINGS[pid];
+      }
+
+      // Process TP/SL triggers
+      if (data.triggered && data.triggered.length > 0) {
+        data.triggered.forEach(t => {
+          if (!TRADE_HISTORY[pid]) TRADE_HISTORY[pid] = [];
+          TRADE_HISTORY[pid].unshift({
+            id: t.id, ticker: t.ticker, action: t.action,
+            order_type: t.order_type, quantity: t.quantity,
+            price: t.price_at_trade, status: t.status,
+            take_profit: null, stop_loss: null,
+            executed_at: t.executed_at, created_at: new Date().toLocaleString()
+          });
+          const reason = needsTpSlCheck ? (pos && pos.direction !== 'short'
+            ? (t.action === 'sell' ? 'TP/SL' : 'TP/SL')
+            : 'TP/SL') : 'Order';
+          showAutoNotification('Position closed — ' + t.action.toUpperCase() + ' ' + t.quantity + ' ' + STOCK_TICKER + ' @ $' + Number(t.price_at_trade).toFixed(2),
+            t.action === 'sell' ? '#F6465D' : '#2EBD85');
+        });
+      }
+
+      // Process filled pending orders
+      if (data.filled_orders && data.filled_orders.length > 0) {
+        data.filled_orders.forEach(t => {
+          // Remove from PENDING_ORDERS
+          const pOrders = PENDING_ORDERS[pid];
+          if (pOrders) {
+            const idx = pOrders.findIndex(o => o.id === t.id);
+            if (idx >= 0) pOrders.splice(idx, 1);
+          }
+          // Add to history
+          if (!TRADE_HISTORY[pid]) TRADE_HISTORY[pid] = [];
+          TRADE_HISTORY[pid].unshift({
+            id: t.id, ticker: t.ticker, action: t.action,
+            order_type: t.order_type, quantity: t.quantity,
+            price: t.price_at_trade, status: 'filled',
+            take_profit: t.take_profit, stop_loss: t.stop_loss,
+            executed_at: t.executed_at, created_at: new Date().toLocaleString()
+          });
+          showAutoNotification(t.order_type.toUpperCase() + ' ' + t.action.toUpperCase() + ' filled — ' +
+            t.quantity + ' ' + STOCK_TICKER + ' @ $' + Number(t.price_at_trade).toFixed(2), '#5B9CF6');
+        });
+        if (window.renderOrderOverlays) window.renderOrderOverlays();
+      }
+
+      if (window.drawPositionLines) window.drawPositionLines();
+      if (window.renderPanel) window.renderPanel();
+    })
+    .catch(() => { _autoCheckInFlight = false; });
+  }
+
+  function showAutoNotification(msg, color) {
+    const el = document.createElement('div');
+    el.textContent = msg;
+    el.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:9999;' +
+      'background:' + color + '22;border:1px solid ' + color + ';color:' + color + ';' +
+      'padding:0.6rem 1.5rem;border-radius:6px;font-size:0.85rem;font-weight:600;pointer-events:none;';
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 4000);
+  }
+
   function stopGBM() {
     if (_gbmTimer) { clearInterval(_gbmTimer); _gbmTimer = null; }
   }
 
   function startGBM(seedCandle) {
     stopGBM();
-    // Wall-clock aligned candle boundaries
-    const intervalMs  = _currentInterval * 60 * 1000;
-    const now         = Date.now();
-    const candleStart = Math.floor(now / intervalMs) * intervalMs;
-
-    // How many ticks fit in one real candle (e.g. 1 min = 600 ticks at 100ms)
-    const ticksPerCandle = Math.max(intervalMs / SUB_TICK_MS, 10);
+    const intervalMs     = _currentInterval * 60 * 1000;
+    // Real-time ticks per candle: 1m = 600 ticks × 100ms = 60s, 5m = 3000 ticks = 5min, etc.
+    const ticksPerCandle = Math.round(intervalMs / SUB_TICK_MS);
+    let   _tick          = 0;
+    // Timestamps continue directly after the last historical candle — no gap
+    let   _nextTs        = seedCandle.timestamp + intervalMs;
 
     _liveCandle = {
-      timestamp: candleStart,
+      timestamp: _nextTs,
       open:   seedCandle.close,
       high:   seedCandle.close,
       low:    seedCandle.close,
@@ -1038,14 +1213,13 @@
     _gbmTimer = setInterval(() => {
       if (!chart || !_liveCandle) return;
 
-      // Check if wall clock crossed into a new candle boundary
-      const now       = Date.now();
-      const boundary  = Math.floor(now / intervalMs) * intervalMs;
-
-      if (boundary > _liveCandle.timestamp) {
-        // New candle — close old, open new
+      _tick++;
+      if (_tick >= ticksPerCandle) {
+        // Candle complete — open the next one
+        _tick    = 0;
+        _nextTs += intervalMs;
         _liveCandle = {
-          timestamp: boundary,
+          timestamp: _nextTs,
           open:   _liveCandle.close,
           high:   _liveCandle.close,
           low:    _liveCandle.close,
@@ -1054,7 +1228,7 @@
         };
       }
 
-      // GBM step — dt scaled so full candle worth of ticks has variance = σ²
+      // GBM step — dt so total variance across one candle equals σ²
       const dt       = 1 / ticksPerCandle;
       const z        = randn();
       const newClose = _liveCandle.close *
@@ -1073,6 +1247,25 @@
       // Keep price range current for right-click estimation
       if (_chartPriceMin === null || _liveCandle.low < _chartPriceMin)  _chartPriceMin = _liveCandle.low;
       if (_chartPriceMax === null || _liveCandle.high > _chartPriceMax) _chartPriceMax = _liveCandle.high;
+
+      // Update current_price in ALL_HOLDINGS so P&L stays live
+      const liveP = _liveCandle.close;
+      Object.keys(ALL_HOLDINGS).forEach(pid => {
+        const arr = ALL_HOLDINGS[pid];
+        if (!Array.isArray(arr)) return;
+        arr.forEach(h => { if (h.ticker === STOCK_TICKER) h.current_price = liveP; });
+      });
+      // Reposition order buttons every tick (cheap DOM op)
+      repositionOrderButtons();
+
+      // Re-render panel + position line P&L labels every ~3 seconds
+      if (typeof window.renderPanel === 'function' && (_tick % 30 === 0)) {
+        window.renderPanel();
+        updatePositionLabels(); // update P&L text in-place, no recreate
+      }
+
+      // Check TP/SL and pending order auto-execution every ~0.5 second
+      if (_tick % 5 === 0) checkAutoTpSl(liveP);
     }, SUB_TICK_MS);
   }
 
@@ -1104,6 +1297,8 @@
     chart.applyNewData(historical);
     updatePriceRange(historical);
     renderOrderOverlays();
+    drawPositionLines();
+    setTimeout(repositionOrderButtons, 100); // after chart renders
 
     calibrateGBM(recent);
     startGBM(historical[historical.length - 1]);
@@ -1156,6 +1351,7 @@
     if (!chart) return;
     _orderOverlays.forEach(id => { try { chart.removeOverlay(id); } catch (_) {} });
     _orderOverlays.length = 0;
+    clearOrderButtons('pending-');
 
     const pid = document.getElementById('panel-portfolio-select')?.value ||
                 document.getElementById('trade-portfolio-select')?.value;
@@ -1166,19 +1362,26 @@
       const price = order.order_type === 'limit' ? order.limit_price : order.stop_price;
       if (!price) return;
       const color = order.action === 'buy' ? '#2EBD85' : '#F6465D';
-      const label = `${order.action.toUpperCase()} ${order.order_type.toUpperCase()} ${order.quantity} @ $${price.toFixed(2)}`;
+      const typeLabel = order.order_type.toUpperCase();
+      const actionLabel = order.action.toUpperCase();
+      const label = `${typeLabel} ${actionLabel}  ${order.quantity} @ $${price.toFixed(2)}`;
       const id = chart.createOverlay({
         name: 'priceLine', lock: true, extendData: label,
         styles: {
           line: { color, size: 1, style: 'dashed', dashedValue: [6, 3] },
-          text: { color: '#fff', size: 10, backgroundColor: color, paddingLeft: 4, paddingRight: 4, paddingTop: 2, paddingBottom: 2, borderRadius: 2 }
+          text: { color: '#fff', size: 10, backgroundColor: color,
+                  paddingLeft: 4, paddingRight: 4, paddingTop: 2, paddingBottom: 2, borderRadius: 2 }
         },
-        points: [{ value: price }]
+        points: [{ value: price }, { value: price }]
       });
       if (id) _orderOverlays.push(id);
+
+      // Add cancel button
+      addOrderButton('pending-' + order.id, price, color,
+        `${typeLabel} ${actionLabel}  ${order.quantity}`, '×',
+        () => { window.cancelOrder(order.id, pid); });
     });
   };
-  // Alias used elsewhere
   window.renderPendingOrdersOnChart = window.renderOrderOverlays;
 
   /* ════════════════════════════════════════════════════════════════
@@ -1186,8 +1389,8 @@
   ════════════════════════════════════════════════════════════════ */
   async function patchTradeTPSL(tradeId, portfolioId, tp, sl) {
     const body = { trade: {} };
-    if (tp !== null && tp !== undefined) body.trade.take_profit = tp.toFixed(4);
-    if (sl !== null && sl !== undefined) body.trade.stop_loss   = sl.toFixed(4);
+    if (tp !== null && tp !== undefined) body.trade.take_profit = tp > 0 ? tp.toFixed(4) : null;
+    if (sl !== null && sl !== undefined) body.trade.stop_loss   = sl > 0 ? sl.toFixed(4) : null;
     await fetch(`/portfolios/${portfolioId}/trades/${tradeId}`, {
       method: 'PATCH',
       headers: {
@@ -1197,57 +1400,355 @@
       },
       body: JSON.stringify(body)
     });
+
+    // Update client-side trade history so drawPositionLines uses fresh data
+    const history = TRADE_HISTORY[portfolioId];
+    if (Array.isArray(history)) {
+      const t = history.find(h => h.id === tradeId);
+      if (t) {
+        if (tp !== null && tp !== undefined) t.take_profit = tp > 0 ? tp : null;
+        if (sl !== null && sl !== undefined) t.stop_loss   = sl > 0 ? sl : null;
+      }
+    }
   }
 
-  window.drawTradeLines = function (trade) {
-    if (!chart) return;
-    const isBuy  = trade.action === 'buy';
-    const eColor = isBuy ? '#2EBD85' : '#F6465D';
-    const entryPx = trade.price_at_trade || (trade.limit_price || trade.stop_price);
-    if (!entryPx) return;
+  /* ── Floating order buttons (TradingView-style close/cancel) ── */
+  const _orderBtnMap = {};
 
-    const group = { tradeId: trade.id, portfolioId: trade.portfolio_id, entryId: null, tpId: null, slId: null };
-
-    // Entry line — locked (cannot be dragged)
-    group.entryId = chart.createOverlay({
-      name: 'priceLine', lock: true,
-      extendData: `${trade.action.toUpperCase()} ${trade.quantity} @ $${Number(entryPx).toFixed(2)}`,
-      styles: { line: { color: eColor, size: 1.5, style: 'solid' },
-                text: { color: '#fff', size: 10, backgroundColor: eColor, paddingLeft: 4, paddingRight: 4, paddingTop: 2, paddingBottom: 2, borderRadius: 2 } },
-      points: [{ value: Number(entryPx) }]
+  function clearOrderButtons(prefix) {
+    const container = document.getElementById('chart-order-buttons');
+    if (!container) return;
+    Object.keys(_orderBtnMap).forEach(k => {
+      if (k.startsWith(prefix)) {
+        _orderBtnMap[k].remove();
+        delete _orderBtnMap[k];
+      }
     });
+  }
 
-    // Take-profit line — draggable, green dashed
-    if (trade.take_profit) {
-      group.tpId = chart.createOverlay({
-        name: 'priceLine',
-        extendData: `TP  $${Number(trade.take_profit).toFixed(2)}`,
-        styles: { line: { color: '#2EBD85', size: 1, style: 'dashed', dashedValue: [8, 4] },
-                  text: { color: '#fff', size: 10, backgroundColor: '#2EBD85', paddingLeft: 4, paddingRight: 4, paddingTop: 2, paddingBottom: 2, borderRadius: 2 } },
-        points: [{ value: Number(trade.take_profit) }],
-        onPressedMoveEnd: (overlay) => {
-          const newTP = overlay.points[0].value;
-          patchTradeTPSL(group.tradeId, group.portfolioId, newTP, null);
+  function addOrderButton(key, price, color, label, btnText, onClick, opts) {
+    const container = document.getElementById('chart-order-buttons');
+    if (!container) return;
+    if (_orderBtnMap[key]) { _orderBtnMap[key].remove(); delete _orderBtnMap[key]; }
+
+    const passThrough = opts?.passThrough || false;
+    const el = document.createElement('div');
+    el.dataset.price = price;
+    el.style.cssText = 'position:absolute;right:0;display:flex;align-items:center;gap:4px;transform:translateY(-50%);' +
+      'pointer-events:' + (passThrough ? 'none' : 'auto') + ';';
+    el.innerHTML =
+      '<span style="font-size:0.7rem;color:#fff;background:' + color + ';padding:2px 6px;border-radius:3px;white-space:nowrap;font-weight:600;pointer-events:none;">' +
+        label +
+      '</span>' +
+      '<button style="background:' + color + '33;border:1px solid ' + color + ';color:' + color + ';' +
+        'width:18px;height:18px;border-radius:3px;font-size:0.75rem;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;line-height:1;font-weight:700;' +
+        'pointer-events:auto;">' +
+        btnText + '</button>';
+    el.querySelector('button').onclick = onClick;
+
+    container.appendChild(el);
+    _orderBtnMap[key] = el;
+  }
+
+  function repositionOrderButtons() {
+    const container = document.getElementById('chart-order-buttons');
+    const chartEl   = document.getElementById('chart-container');
+    if (!container || !chartEl || !chart) return;
+
+    const cRect = chartEl.getBoundingClientRect();
+    const bRect = container.getBoundingClientRect();
+    const minY  = 10;                          // top margin
+    const maxY  = cRect.height - 30;           // bottom margin (above x-axis)
+
+    Object.keys(_orderBtnMap).forEach(k => {
+      const el = _orderBtnMap[k];
+      const priceVal = parseFloat(el.dataset.price);
+      if (isNaN(priceVal)) return;
+      try {
+        const coord = chart.convertToPixel({ value: priceVal }, { paneId: 'candle_pane' });
+        if (coord && coord.y !== undefined) {
+          // Clamp to visible chart area so buttons are always accessible
+          const clampedY = Math.max(minY, Math.min(maxY, coord.y));
+          el.style.top = (clampedY + cRect.top - bRect.top) + 'px';
+          el.style.display = 'flex';
+          // Show arrow indicator when price is off-screen
+          const arrow = el.querySelector('.offscreen-arrow');
+          if (coord.y < minY) {
+            if (!arrow) el.insertAdjacentHTML('afterbegin', '<span class="offscreen-arrow" style="font-size:0.6rem;color:#fff;margin-right:2px;">▲</span>');
+            else arrow.textContent = '▲';
+          } else if (coord.y > maxY) {
+            if (!arrow) el.insertAdjacentHTML('afterbegin', '<span class="offscreen-arrow" style="font-size:0.6rem;color:#fff;margin-right:2px;">▼</span>');
+            else arrow.textContent = '▼';
+          } else if (arrow) {
+            arrow.remove();
+          }
         }
+      } catch (_) {
+        el.style.display = 'none';
+      }
+    });
+  }
+
+  // Create a price line overlay. priceLine needs 2 points (totalStep:2).
+  function makePriceLine(price, color, label, opts) {
+    const draggable = opts?.draggable || false;
+    const lineStyle = opts?.style || 'solid';
+    const lineSize  = opts?.size || 1.5;
+    const config = {
+      name: 'priceLine',
+      lock: !draggable,
+      extendData: label,
+      styles: {
+        line: { color, size: lineSize, style: lineStyle, dashedValue: [6, 3] },
+        text: { color: '#fff', size: 11, backgroundColor: color,
+                paddingLeft: 6, paddingRight: 6, paddingTop: 3, paddingBottom: 3, borderRadius: 3 },
+        point: { radius: 0, borderSize: 0, activeRadius: 0, activeBorderSize: 0 }
+      },
+      points: [{ value: Number(price) }, { value: Number(price) }]
+    };
+    if (draggable) {
+      // Lock horizontal: strip timestamp/dataIndex so line always spans full width
+      config.onPressedMoving = (event) => {
+        event.overlay.points.forEach(p => { delete p.timestamp; delete p.dataIndex; });
+        const newVal = event.overlay.points[0].value;
+        if (opts?.onDragMove) opts.onDragMove(newVal, event.overlay);
+      };
+    }
+    if (opts?.onDragEnd) {
+      config.onPressedMoveEnd = (event) => {
+        event.overlay.points.forEach(p => { delete p.timestamp; delete p.dataIndex; });
+        const newVal = event.overlay.points[0].value;
+        opts.onDragEnd(newVal);
+      };
+    }
+    if (opts?.onRightClick) {
+      config.onRightClick = (event) => {
+        opts.onRightClick(event);
+        return true; // prevent default context menu
+      };
+    }
+    return chart.createOverlay(config);
+  }
+
+  // Render position-level lines: average entry + TP/SL with P&L labels and close buttons.
+  // Only called when the position structurally changes (new trade, close, TP/SL set/removed).
+  // NOT called from GBM tick — use updatePositionLabels() for live P&L updates.
+  window.drawPositionLines = function () {
+    if (!chart) return;
+
+    // Remove old position lines
+    _tradeLines.forEach(g => {
+      [g.entryId, g.tpId, g.slId].forEach(id => {
+        if (id) try { chart.removeOverlay(id); } catch (_) {}
       });
+    });
+    _tradeLines.length = 0;
+    clearOrderButtons('pos-');
+
+    const pid = document.getElementById('panel-portfolio-select')?.value ||
+                document.getElementById('trade-portfolio-select')?.value;
+    if (!pid) return;
+
+    const holdings = ALL_HOLDINGS[pid];
+    if (!Array.isArray(holdings)) return;
+    const pos = holdings.find(h => h.ticker === STOCK_TICKER);
+    if (!pos || pos.quantity <= 0) return;
+
+    const isShort  = pos.direction === 'short';
+    const avgEntry = pos.average_cost;
+    const curPrice = pos.current_price || _cursorPrice || avgEntry;
+    const qty      = pos.quantity;
+    const entryPnl = isShort ? (avgEntry - curPrice) * qty : (curPrice - avgEntry) * qty;
+    const pnlSign  = entryPnl >= 0 ? '+' : '';
+
+    const group = { entryId: null, tpId: null, slId: null, tradeId: null, portfolioId: pid,
+                    isShort, avgEntry, qty };
+
+    // ── Entry line ──
+    const entryColor = isShort ? '#F0B90B' : '#5B9CF6';
+    const dirTag     = isShort ? 'SHORT' : 'LONG';
+    const entryLabel = `${dirTag}  ${qty.toFixed(0)} × $${avgEntry.toFixed(2)}  ${pnlSign}$${Math.abs(entryPnl).toFixed(2)}`;
+    group.entryId = makePriceLine(avgEntry, entryColor, entryLabel,
+      { style: 'solid', size: 1.5 });
+    group.entryColor = entryColor;
+
+    addOrderButton('pos-entry', avgEntry, entryColor,
+      `${qty.toFixed(0)}  ${pnlSign}${Math.abs(entryPnl).toFixed(2)} USD`, '×',
+      () => { closePosition(pid, pos); });
+
+    // ── Find latest filled trade for TP/SL ──
+    const history = TRADE_HISTORY[pid];
+    let latestTP = null, latestSL = null, latestTradeId = null;
+    if (Array.isArray(history)) {
+      for (const t of history) {
+        if (t.ticker === STOCK_TICKER && t.status === 'filled') {
+          latestTradeId = t.id;
+          if (t.take_profit) latestTP = Number(t.take_profit);
+          if (t.stop_loss)   latestSL = Number(t.stop_loss);
+          break;
+        }
+      }
+    }
+    group.tradeId = latestTradeId;
+    group.tp = latestTP;
+    group.sl = latestSL;
+
+    // Helper: build TP/SL button label
+    function tpSlBtnText(tag, price, pnl) {
+      const s = pnl >= 0 ? '+' : '';
+      return `${tag}  $${price.toFixed(2)}  (${s}$${Math.abs(pnl).toFixed(2)})`;
     }
 
-    // Stop-loss line — draggable, red dashed
-    if (trade.stop_loss) {
-      group.slId = chart.createOverlay({
-        name: 'priceLine',
-        extendData: `SL  $${Number(trade.stop_loss).toFixed(2)}`,
-        styles: { line: { color: '#F6465D', size: 1, style: 'dashed', dashedValue: [8, 4] },
-                  text: { color: '#fff', size: 10, backgroundColor: '#F6465D', paddingLeft: 4, paddingRight: 4, paddingTop: 2, paddingBottom: 2, borderRadius: 2 } },
-        points: [{ value: Number(trade.stop_loss) }],
-        onPressedMoveEnd: (overlay) => {
-          const newSL = overlay.points[0].value;
-          patchTradeTPSL(group.tradeId, group.portfolioId, null, newSL);
-        }
-      });
+    // ── Take Profit line — green, draggable ──
+    if (latestTP && latestTP > 0) {
+      const tpPnl = isShort ? (avgEntry - latestTP) * qty : (latestTP - avgEntry) * qty;
+      group.tpId = makePriceLine(latestTP, '#2EBD85', '',
+        { style: 'solid', size: 2, draggable: true,
+          onDragMove: (newVal) => {
+            const pnl = isShort ? (avgEntry - newVal) * qty : (newVal - avgEntry) * qty;
+            const btn = _orderBtnMap['pos-tp'];
+            if (btn) {
+              btn.dataset.price = newVal;
+              const span = btn.querySelector('span');
+              if (span) span.textContent = tpSlBtnText('TP', newVal, pnl);
+              repositionOrderButtons();
+            }
+          },
+          onDragEnd: (newVal) => {
+            group.tp = newVal;
+            if (group.tradeId) patchTradeTPSL(group.tradeId, pid, newVal, null);
+          },
+          onRightClick: () => {
+            if (group.tradeId) patchTradeTPSL(group.tradeId, pid, 0, null).then(() => { window.drawPositionLines(); });
+          }
+        });
+      addOrderButton('pos-tp', latestTP, '#2EBD85', tpSlBtnText('TP', latestTP, tpPnl), '×',
+        () => { if (group.tradeId) patchTradeTPSL(group.tradeId, pid, 0, null).then(() => { window.drawPositionLines(); }); },
+        { passThrough: true });
+    }
+
+    // ── Stop Loss line — red, draggable ──
+    if (latestSL && latestSL > 0) {
+      const slPnl = isShort ? (avgEntry - latestSL) * qty : (latestSL - avgEntry) * qty;
+      group.slId = makePriceLine(latestSL, '#F6465D', '',
+        { style: 'solid', size: 2, draggable: true,
+          onDragMove: (newVal) => {
+            const pnl = isShort ? (avgEntry - newVal) * qty : (newVal - avgEntry) * qty;
+            const btn = _orderBtnMap['pos-sl'];
+            if (btn) {
+              btn.dataset.price = newVal;
+              const span = btn.querySelector('span');
+              if (span) span.textContent = tpSlBtnText('SL', newVal, pnl);
+              repositionOrderButtons();
+            }
+          },
+          onDragEnd: (newVal) => {
+            group.sl = newVal;
+            if (group.tradeId) patchTradeTPSL(group.tradeId, pid, null, newVal);
+          },
+          onRightClick: () => {
+            if (group.tradeId) patchTradeTPSL(group.tradeId, pid, null, 0).then(() => { window.drawPositionLines(); });
+          }
+        });
+      addOrderButton('pos-sl', latestSL, '#F6465D', tpSlBtnText('SL', latestSL, slPnl), '×',
+        () => { if (group.tradeId) patchTradeTPSL(group.tradeId, pid, null, 0).then(() => { window.drawPositionLines(); }); },
+        { passThrough: true });
     }
 
     _tradeLines.push(group);
+  };
+
+  // Update P&L labels in-place without destroying/recreating overlays.
+  // Safe to call from GBM tick — won't interrupt dragging.
+  function updatePositionLabels() {
+    if (!chart || _tradeLines.length === 0) return;
+    const g = _tradeLines[0];
+    if (!g || !g.entryId) return;
+
+    const pid = g.portfolioId;
+    const holdings = ALL_HOLDINGS[pid];
+    if (!Array.isArray(holdings)) return;
+    const pos = holdings.find(h => h.ticker === STOCK_TICKER);
+    if (!pos || pos.quantity <= 0) return;
+
+    const curPrice = pos.current_price || _cursorPrice || g.avgEntry;
+    const qty = g.qty;
+    const isShort = g.isShort;
+    const avgEntry = g.avgEntry;
+    const entryPnl = isShort ? (avgEntry - curPrice) * qty : (curPrice - avgEntry) * qty;
+    const pnlSign = entryPnl >= 0 ? '+' : '';
+    const dirTag = isShort ? 'SHORT' : 'LONG';
+
+    // Update entry label in-place
+    try {
+      chart.overrideOverlay({
+        id: g.entryId,
+        extendData: `${dirTag}  ${qty.toFixed(0)} × $${avgEntry.toFixed(2)}  ${pnlSign}$${Math.abs(entryPnl).toFixed(2)}`
+      });
+    } catch (_) {}
+
+    // Update entry button text
+    const entryBtn = _orderBtnMap['pos-entry'];
+    if (entryBtn) {
+      const span = entryBtn.querySelector('span');
+      if (span) span.textContent = `${qty.toFixed(0)}  ${pnlSign}${Math.abs(entryPnl).toFixed(2)} USD`;
+    }
+
+    // Update TP/SL button text (P&L doesn't change with price for fixed TP/SL,
+    // but update anyway in case the values were dragged)
+    if (g.tp && g.tp > 0) {
+      const tpPnl = isShort ? (avgEntry - g.tp) * qty : (g.tp - avgEntry) * qty;
+      const tpBtn = _orderBtnMap['pos-tp'];
+      if (tpBtn) {
+        const s = tpPnl >= 0 ? '+' : '';
+        tpBtn.querySelector('span').textContent = `TP  $${g.tp.toFixed(2)}  (${s}$${Math.abs(tpPnl).toFixed(2)})`;
+      }
+    }
+    if (g.sl && g.sl > 0) {
+      const slPnl = isShort ? (avgEntry - g.sl) * qty : (g.sl - avgEntry) * qty;
+      const slBtn = _orderBtnMap['pos-sl'];
+      if (slBtn) {
+        const s = slPnl >= 0 ? '+' : '';
+        slBtn.querySelector('span').textContent = `SL  $${g.sl.toFixed(2)}  (${s}$${Math.abs(slPnl).toFixed(2)})`;
+      }
+    }
+  }
+
+  // Close entire position (market order)
+  function closePosition(pid, pos) {
+    const action = pos.direction === 'short' ? 'buy' : 'sell';
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    fetch('/portfolios/' + pid + '/trades', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken, 'Accept': 'application/json' },
+      body: JSON.stringify({ trade: { ticker: STOCK_TICKER, action: action, quantity: pos.quantity, order_type: 'market' } })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.trade) {
+        if (data.cash_balance !== undefined) PORTFOLIO_CASH[pid] = data.cash_balance;
+        const hArr = ALL_HOLDINGS[pid] || [];
+        const idx = hArr.findIndex(h => h.ticker === STOCK_TICKER);
+        if (data.holding) {
+          const upd = { ticker: STOCK_TICKER, quantity: data.holding.quantity, average_cost: data.holding.average_cost, direction: data.holding.direction, current_price: pos.current_price };
+          if (idx >= 0) Object.assign(hArr[idx], upd); else hArr.push(upd);
+          PORTFOLIO_HOLDINGS[pid] = { quantity: data.holding.quantity, average_cost: data.holding.average_cost, direction: data.holding.direction };
+        } else {
+          if (idx >= 0) hArr.splice(idx, 1);
+          delete PORTFOLIO_HOLDINGS[pid];
+        }
+        if (!TRADE_HISTORY[pid]) TRADE_HISTORY[pid] = [];
+        TRADE_HISTORY[pid].unshift({ id: data.trade.id, ticker: data.trade.ticker, action: data.trade.action, order_type: data.trade.order_type, quantity: data.trade.quantity, price: data.trade.price_at_trade, status: data.trade.status, take_profit: null, stop_loss: null, executed_at: data.trade.executed_at, created_at: new Date().toLocaleString() });
+        if (window.drawPositionLines) window.drawPositionLines();
+        if (window.renderPanel) window.renderPanel();
+        showAutoNotification('Position closed — ' + action.toUpperCase() + ' ' + pos.quantity + ' ' + STOCK_TICKER, pos.direction === 'short' ? '#2EBD85' : '#F6465D');
+      }
+    });
+  }
+
+  // Legacy alias
+  window.drawTradeLines = function (_trade) {
+    window.drawPositionLines();
   };
 
   /* ════════════════════════════════════════════════════════════════
@@ -1257,7 +1758,10 @@
     document.getElementById('chart-context-menu').style.display = 'none';
   }
 
+  let _ctxMenuPrice = 0; // price at the point of right-click
+
   function showContextMenu(x, y, price) {
+    _ctxMenuPrice = price;
     const menu = document.getElementById('chart-context-menu');
     const priceStr = price.toFixed(2);
     menu.querySelector('#ctx-price-label').textContent = priceStr;
@@ -1267,25 +1771,30 @@
     menu.style.display = 'block';
   }
 
-  // Estimate price from mouse y-position within the chart canvas.
-  // We approximate using chart container height and the visible price range.
+  // Convert mouse Y → price using KLineChart's coordinate system
   let _chartPriceMin = null;
   let _chartPriceMax = null;
 
   function estimatePriceFromY(clientY) {
+    if (!chart) return _cursorPrice || 0;
     const container = document.getElementById('chart-container');
     if (!container) return _cursorPrice || 0;
-    const rect   = container.getBoundingClientRect();
-    const relY   = clientY - rect.top;
-    const height = rect.height;
-    if (!_chartPriceMin || !_chartPriceMax || _chartPriceMin === _chartPriceMax)
-      return _cursorPrice || 0;
-    // y=0 is top (max price), y=height is bottom (min price)
-    const fraction = relY / height;
-    return _chartPriceMax - fraction * (_chartPriceMax - _chartPriceMin);
+    const rect = container.getBoundingClientRect();
+    const y = clientY - rect.top;
+    try {
+      const result = chart.convertFromPixel({ y }, { paneId: 'candle_pane' });
+      if (result && typeof result.value === 'number' && result.value > 0) {
+        return result.value;
+      }
+    } catch (_) {}
+    // Fallback to linear approximation
+    if (_chartPriceMin && _chartPriceMax && _chartPriceMin !== _chartPriceMax) {
+      const fraction = (clientY - rect.top) / rect.height;
+      return _chartPriceMax - fraction * (_chartPriceMax - _chartPriceMin);
+    }
+    return _cursorPrice || 0;
   }
 
-  // Update price range estimate whenever new data arrives
   function updatePriceRange(data) {
     if (!data || data.length === 0) return;
     _chartPriceMin = Math.min(...data.map(d => d.low));
@@ -1294,12 +1803,12 @@
 
   window.ctxPlaceOrder = function (action, orderType) {
     hideContextMenu();
-    const price = _cursorPrice || 0;
+    const price = _ctxMenuPrice || _cursorPrice || 0;
     openTradeModal(action);
     // Pre-select the order type
     const typeBtn = document.querySelector(`.order-type-btn[data-order-type="${orderType}"]`);
     if (typeBtn) selectOrderType(orderType, typeBtn);
-    // Pre-fill limit/stop price
+    // Pre-fill limit/stop price from right-click Y position
     if (orderType === 'limit') {
       const el = document.getElementById('trade-limit-price');
       if (el) el.value = price.toFixed(2);
@@ -1308,11 +1817,13 @@
       const el = document.getElementById('trade-stop-price');
       if (el) el.value = price.toFixed(2);
     }
-    // Pre-fill TP/SL suggestions (10% away from price)
+    // Pre-fill TP/SL with reasonable defaults:
+    // Buy: TP = +5%, SL = -3%  |  Sell (short): TP = -5%, SL = +3%
+    const livePrice = getLivePrice() || price;
     const tpEl = document.getElementById('trade-take-profit');
     const slEl = document.getElementById('trade-stop-loss');
-    if (tpEl && price > 0) tpEl.value = action === 'buy' ? (price * 1.10).toFixed(2) : (price * 0.90).toFixed(2);
-    if (slEl && price > 0) slEl.value = action === 'buy' ? (price * 0.95).toFixed(2) : (price * 1.05).toFixed(2);
+    if (tpEl && livePrice > 0) tpEl.value = action === 'buy' ? (livePrice * 1.05).toFixed(2) : (livePrice * 0.95).toFixed(2);
+    if (slEl && livePrice > 0) slEl.value = action === 'buy' ? (livePrice * 0.97).toFixed(2) : (livePrice * 1.03).toFixed(2);
   };
 
   /* ════════════════════════════════════════════════════════════════

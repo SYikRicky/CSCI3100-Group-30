@@ -30,7 +30,7 @@ RSpec.describe "Trades", type: :request do
       expect(response.body).to include("Insufficient cash balance")
     end
 
-    it "shows error when user tries to sell more shares than owned" do
+    it "flips to short when selling more shares than long holding" do
       create(:holding, portfolio: portfolio, stock: stock, quantity: 2, average_cost: 90)
 
       post portfolio_trades_path(portfolio), params: {
@@ -39,7 +39,22 @@ RSpec.describe "Trades", type: :request do
 
       expect(response).to redirect_to(portfolio_path(portfolio))
       follow_redirect!
-      expect(response.body).to include("insufficient shares to sell")
+      expect(response.body).to include("Trade executed successfully")
+
+      holding = portfolio.holdings.find_by(stock: stock)
+      expect(holding.direction).to eq("short")
+      expect(holding.quantity.to_i).to eq(3)
+    end
+
+    it "opens short position when selling without holdings" do
+      post portfolio_trades_path(portfolio), params: {
+        trade: { ticker: stock.ticker, action: "sell", quantity: 5 }
+      }
+
+      expect(response).to redirect_to(portfolio_path(portfolio))
+      holding = portfolio.holdings.find_by(stock: stock)
+      expect(holding.direction).to eq("short")
+      expect(holding.quantity.to_i).to eq(5)
     end
 
     it "shows error when stock ticker is unknown" do

@@ -20,6 +20,7 @@ Rails.application.routes.draw do
   resources :portfolios, only: [ :show ] do
     resources :trades, only: [ :create, :update ] do
       member { patch :cancel }
+      collection { post :check_tp_sl }
     end
   end
 

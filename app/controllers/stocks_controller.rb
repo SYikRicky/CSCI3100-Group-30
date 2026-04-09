@@ -1,8 +1,20 @@
 class StocksController < ApplicationController
   before_action :set_stock, only: [ :show, :ohlcv ]
-
+  MARKET_OPEN_INDEX = 49
   def index
     @stocks = Stock.all
+    # Day-open reference price per ticker (the 50th snapshot = index 49)
+    @day_open = {}
+    Stock.find_each do |stock|
+      snap = PriceSnapshot.where(stock_id: stock.id).order(:recorded_at).offset(MARKET_OPEN_INDEX).first
+      @day_open[stock.ticker] = snap&.close.to_f
+    end
+  end
+
+  def prices
+    tickers = params[:tickers].to_s.split(",").map(&:strip).map(&:upcase)
+    stocks  = tickers.any? ? Stock.where(ticker: tickers) : Stock.all
+    render json: stocks.each_with_object({}) { |s, h| h[s.ticker] = s.last_price.to_f }
   end
 
   def ohlcv
@@ -36,7 +48,7 @@ class StocksController < ApplicationController
     @portfolio_cash = @portfolios.each_with_object({}) { |p, h| h[p.id] = p.cash_balance.to_f }
     holding_rows = Holding.where(portfolio_id: @portfolios.map(&:id), stock_id: @stock.id)
     @my_holdings = holding_rows.each_with_object({}) do |h, memo|
-      memo[h.portfolio_id] = { quantity: h.quantity.to_f, average_cost: h.average_cost.to_f }
+      memo[h.portfolio_id] = { quantity: h.quantity.to_f, average_cost: h.average_cost.to_f, direction: h.direction }
     end
 
     # All holdings across all portfolios (for bottom panel)
@@ -49,7 +61,8 @@ class StocksController < ApplicationController
         quantity: h.quantity.to_f,
         average_cost: h.average_cost.to_f,
         current_price: h.stock.last_price.to_f,
-        stock_id: h.stock_id
+        stock_id: h.stock_id,
+        direction: h.direction
       }
     end
 
@@ -77,12 +90,15 @@ class StocksController < ApplicationController
                          .limit(50)
                          .each_with_object({}) do |t, memo|
       (memo[t.portfolio_id] ||= []) << {
+        id: t.id,
         ticker: t.stock.ticker,
         action: t.action,
         order_type: t.order_type,
         quantity: t.quantity.to_f,
         price: t.price_at_trade&.to_f,
         status: t.status,
+        take_profit: t.take_profit&.to_f,
+        stop_loss: t.stop_loss&.to_f,
         executed_at: t.executed_at&.strftime("%b %d %H:%M"),
         created_at: t.created_at.strftime("%b %d %H:%M")
       }
