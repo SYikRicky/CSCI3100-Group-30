@@ -149,6 +149,11 @@
         if (resp.ok) {
           showMsg(msgEl, data.notice, 'success');
           form.reset();
+          if (data.url) {
+            setTimeout(() => { window.location.href = data.url; }, 800);
+          } else {
+            setTimeout(() => { window.location.reload(); }, 800);
+          }
         } else {
           const msg = data.error || (data.errors && data.errors.join(', ')) || 'Something went wrong.';
           showMsg(msgEl, msg, 'error');
