@@ -72,8 +72,7 @@ Then('the chart script should not contain a fixed TICKS_PER_CANDLE constant') do
 end
 
 Then('the chart script should use tick-counting for real-time candle duration') do
-  # ticksPerOneMin is computed from oneMinMs / SUB_TICK_MS, not a fixed constant
-  expect(page.source).to include("ticksPerOneMin")
+  # Candle duration is computed from _currentInterval and SUB_TICK_MS, not a fixed constant
   expect(page.source).to include("_currentInterval")
   expect(page.source).to include("SUB_TICK_MS")
 end
