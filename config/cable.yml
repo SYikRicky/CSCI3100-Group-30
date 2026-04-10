@@ -5,8 +5,10 @@
 development:
   adapter: async
 
+# Use async so browser clients (e.g. Cucumber + Selenium + Turbo Streams) receive
+# broadcasts in the same Puma process. The :test adapter only queues for assert_broadcasts.
 test:
-  adapter: test
+  adapter: async
 
 production:
   adapter: solid_cable

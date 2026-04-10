@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
+    <%= action_cable_meta_tag %>
 
     <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
     <%= stylesheet_link_tag "tailwind", "data-turbo-track": "reload" %>
@@ -74,6 +75,10 @@
                         padding: 0.4rem 0.75rem; border-radius: 4px; transition: color 0.2s;",
                 onmouseover: "this.style.color='#EAECEF'", onmouseout: "this.style.color='#929AA5'" %>
             <%= link_to "Friends", friendships_path,
+                style: "color: #929AA5; text-decoration: none; font-size: 0.875rem; font-weight: 500;
+                        padding: 0.4rem 0.75rem; border-radius: 4px; transition: color 0.2s;",
+                onmouseover: "this.style.color='#EAECEF'", onmouseout: "this.style.color='#929AA5'" %>
+            <%= link_to "Chatroom", chatrooms_path,
                 style: "color: #929AA5; text-decoration: none; font-size: 0.875rem; font-weight: 500;
                         padding: 0.4rem 0.75rem; border-radius: 4px; transition: color 0.2s;",
                 onmouseover: "this.style.color='#EAECEF'", onmouseout: "this.style.color='#929AA5'" %>
