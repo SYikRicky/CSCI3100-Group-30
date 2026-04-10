@@ -54,26 +54,6 @@ RSpec.describe Friendship, type: :model do
     end
   end
 
-  describe ".accepted_between?" do
-    let(:alice) { FactoryBot.create(:user) }
-    let(:bob)   { FactoryBot.create(:user) }
-
-    it "returns true when an accepted friendship exists (either direction)" do
-      FactoryBot.create(:friendship, user: alice, friend: bob, status: :accepted)
-      expect(described_class.accepted_between?(alice, bob)).to be true
-      expect(described_class.accepted_between?(bob, alice)).to be true
-    end
-
-    it "returns false when only pending" do
-      FactoryBot.create(:friendship, user: alice, friend: bob, status: :pending)
-      expect(described_class.accepted_between?(alice, bob)).to be false
-    end
-
-    it "returns false for unrelated users" do
-      expect(described_class.accepted_between?(alice, bob)).to be false
-    end
-  end
-
   describe "scopes" do
     let(:user)    { FactoryBot.create(:user) }
     let(:friend1) { FactoryBot.create(:user) }

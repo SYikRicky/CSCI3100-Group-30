@@ -1,6 +1,4 @@
 Rails.application.routes.draw do
-  get "favicon.ico", to: proc { [ 204, {}, [] ] }
-
   get "stocks/index"
   get "stocks/show"
   devise_for :users
@@ -20,9 +18,6 @@ Rails.application.routes.draw do
   end
 
   resources :friendships, only: [ :index, :create, :update, :destroy ]
-  resources :chatrooms, only: [ :index ] do
-    resources :messages, only: [ :create ]
-  end
   resources :portfolios, only: [ :show ] do
     resources :trades, only: [ :create, :update ] do
       member { patch :cancel }
@@ -31,8 +26,6 @@ Rails.application.routes.draw do
   end
 
   root to: "home#index"
-
-  mount ActionCable.server => "/cable"
 
   get "up" => "rails/health#show", as: :rails_health_check
 end

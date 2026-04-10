@@ -13,8 +13,6 @@ class User < ApplicationRecord
   has_many :sent_friendships,     class_name: "Friendship", foreign_key: :user_id,   dependent: :destroy
   has_many :received_friendships, class_name: "Friendship", foreign_key: :friend_id, dependent: :destroy
   has_many :notifications, dependent: :destroy
-  has_many :sent_messages, class_name: "Message", foreign_key: :sender_id, dependent: :destroy
-  has_many :received_messages, class_name: "Message", foreign_key: :receiver_id, dependent: :destroy
 
   validates :email, presence: true, uniqueness: { case_sensitive: false }
 

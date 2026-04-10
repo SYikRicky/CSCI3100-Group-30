@@ -4,13 +4,6 @@ class Friendship < ApplicationRecord
 
   enum :status, { pending: 0, accepted: 1, rejected: 2 }
 
-  def self.accepted_between?(user_a, user_b)
-    return false if user_a.blank? || user_b.blank?
-
-    accepted.exists?(user_id: user_a.id, friend_id: user_b.id) ||
-      accepted.exists?(user_id: user_b.id, friend_id: user_a.id)
-  end
-
   validates :user, :friend, presence: true
   validates :friend_id, uniqueness: { scope: :user_id }
   validate :not_self_referential
