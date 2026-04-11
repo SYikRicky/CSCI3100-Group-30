@@ -30,24 +30,6 @@
             <% end %>
           <% end %>
         </nav>
-
-        <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.08);">
-          <label for="chat-partner-select" style="color: #929AA5; font-size: 0.72rem; font-weight: 700;
-                 text-transform: uppercase; letter-spacing: 0.08em; display: block; margin-bottom: 0.4rem;">
-            Quick select
-          </label>
-          <select id="chat-partner-select" data-testid="chat-partner-select"
-                  style="width: 100%; padding: 0.5rem; border-radius: 6px; background: rgba(255,255,255,0.07);
-                         border: 1px solid rgba(255,255,255,0.12); color: #EAECEF; font-size: 0.82rem;"
-                  onchange="if (this.value) window.location.href = this.value;">
-            <option value="">Choose a friend…</option>
-            <% @friends.each do |friend| %>
-              <option value="<%= chatrooms_path(friend_id: friend.id) %>" <%= "selected" if @selected_friend&.id == friend.id %>>
-                <%= friend.display_name %>
-              </option>
-            <% end %>
-          </select>
-        </div>
       <% else %>
         <p style="color: #929AA5; font-size: 0.85rem; margin: 0;">No friends yet. Add friends from the Friends page.</p>
         <%= link_to "Go to Friends", friendships_path,
@@ -57,7 +39,8 @@
 
     <%# ── Main pane ── %>
     <section class="bnb-card" data-testid="chatroom-main"
-             style="flex: 1; border-radius: 12px; padding: 1rem; display: flex; flex-direction: column; min-width: 0;">
+            style="flex: 1; border-radius: 12px; padding: 1rem; display: flex; flex-direction: column;
+              min-width: 0; height: 70vh; max-height: 720px; min-height: 420px;">
 
       <% if @selected_friend %>
         <div style="border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.75rem; margin-bottom: 0.75rem;">
@@ -68,13 +51,14 @@
         </div>
 
         <div id="chat-messages" data-testid="chat-messages"
-             style="flex: 1; overflow-y: auto; margin-bottom: 1rem; min-height: 200px;">
+             style="flex: 1; min-height: 0; overflow-y: auto; margin-bottom: 1rem;">
           <%= render partial: "messages/message", collection: @messages, as: :message %>
         </div>
 
         <%= form_with url: chatroom_messages_path(chatroom_id: @selected_friend.id), method: :post, scope: :message,
             data: { turbo: false }, html: { data: { testid: "chat-message-form" } } do |f| %>
-          <div style="display: flex; gap: 0.75rem; align-items: flex-end;">
+          <div style="display: flex; gap: 0.75rem; align-items: flex-end; border-top: 1px solid rgba(255,255,255,0.08);
+                      padding-top: 0.75rem; margin-top: auto;">
             <%= f.text_area :content, rows: 2, required: true, placeholder: "Type a message…",
                 class: "bnb-input", style: "resize: vertical; min-height: 44px;",
                 data: { testid: "chat-message-input" } %>

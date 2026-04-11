@@ -43,11 +43,9 @@ Given(/^user "([^"]+)" is chatting with "([^"]+)" in session :(\w+)$/) do |me_em
   sym = session_name.to_sym
   @session_chat_urls ||= {}
   Capybara.using_session(sym) do
-    visit new_user_session_path
-    fill_in "Email", with: me.email
-    fill_in "Password", with: "password123"
-    click_button "Log in"
+    login_as(me, scope: :user)
     visit chatrooms_path(friend_id: other.id)
+    expect(page).to have_css("[data-testid='chat-message-form']", wait: 15)
     @session_chat_urls[sym] = page.current_url
   end
 end
