@@ -534,6 +534,15 @@ trix-toolbar .trix-button--dialog {
   border-bottom: none;
 }
 
+/* Limit image size in editor */
+trix-editor img {
+  max-width: 100%;
+  max-height: 520px;
+  width: auto;
+  height: auto;
+  border-radius: 8px;
+}
+
 /* Restore list styles stripped by Tailwind reset */
 trix-editor ol {
   list-style: decimal;
@@ -567,5 +576,24 @@ trix-editor ul {
 }
 .idea-body .trix-content a {
   color: #14B8A6;
+}
+.idea-body .trix-content img {
+  max-width: 100%;
+  max-height: 520px;
+  width: auto;
+  height: auto;
+  border-radius: 8px;
+  display: block;
+  margin: 0.75rem 0;
+}
+.idea-body .trix-content .attachment__caption {
+  color: #929AA5;
+}
+.idea-body .trix-content .attachment--file {
+  color: #EAECEF;
+  border-color: rgba(255,255,255,0.15);
+}
+.idea-body .trix-content .attachment--preview .attachment__caption {
+  color: #929AA5;
 }
 

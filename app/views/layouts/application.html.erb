@@ -111,18 +111,20 @@
                           border-radius: 10px; padding: 1rem; min-width: 280px; max-height: 360px; overflow-y: auto;">
                 <p style="color: #929AA5; font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
                           letter-spacing: 0.08em; margin: 0 0 0.75rem;">Notifications</p>
-                <% if @notifications&.any? %>
-                  <% @notifications.each do |n| %>
-                    <div style="padding: 0.6rem 0; border-bottom: 1px solid rgba(255,255,255,0.06);">
-                      <p style="color: #EAECEF; font-size: 0.82rem; font-weight: 600; margin: 0 0 0.2rem;">
-                        <%= n.title %>
-                      </p>
-                      <p style="color: #929AA5; font-size: 0.78rem; margin: 0;"><%= n.body %></p>
-                    </div>
+                <div data-mailbox-target="list">
+                  <% if @notifications&.any? %>
+                    <% @notifications.each do |n| %>
+                      <div style="padding: 0.6rem 0; border-bottom: 1px solid rgba(255,255,255,0.06);">
+                        <p style="color: #EAECEF; font-size: 0.82rem; font-weight: 600; margin: 0 0 0.2rem;">
+                          <%= n.title %>
+                        </p>
+                        <p style="color: #929AA5; font-size: 0.78rem; margin: 0;"><%= n.body %></p>
+                      </div>
+                    <% end %>
+                  <% else %>
+                    <p data-empty style="color: #929AA5; font-size: 0.82rem; margin: 0;">No notifications</p>
                   <% end %>
-                <% else %>
-                  <p style="color: #929AA5; font-size: 0.82rem; margin: 0;">No notifications</p>
-                <% end %>
+                </div>
               </div>
             </div>
 

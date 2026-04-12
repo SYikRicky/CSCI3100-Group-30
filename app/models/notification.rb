@@ -10,4 +10,16 @@ class Notification < ApplicationRecord
 
   scope :recent, -> { order(created_at: :desc).limit(10) }
   scope :unread, -> { where(read_at: nil) }
+
+  after_create_commit :broadcast_to_user
+
+  private
+
+  def broadcast_to_user
+    NotificationChannel.broadcast_to(user, {
+      type: "notification",
+      title: title,
+      body: body
+    })
+  end
 end

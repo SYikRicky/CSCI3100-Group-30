@@ -9,6 +9,8 @@ class Message < ApplicationRecord
   validate :not_messaging_self
   validate :must_be_accepted_friends
 
+  after_create_commit :broadcast_badge_to_receiver
+
   scope :conversation_between, lambda { |user_a, user_b|
     a_id = user_a.id
     b_id = user_b.id
@@ -33,5 +35,14 @@ class Message < ApplicationRecord
     return if Friendship.accepted_between?(sender, receiver)
 
     errors.add(:base, "You can only message accepted friends")
+  end
+
+  def broadcast_badge_to_receiver
+    unread = Message.where(receiver: receiver, read_at: nil).count
+    NotificationChannel.broadcast_to(receiver, {
+      type: "new_message",
+      unread_count: unread,
+      sender_name: sender.display_name
+    })
   end
 end

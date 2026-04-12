@@ -22,6 +22,7 @@ module Csci3100Group30
     # in config/environments, which are processed later.
     #
     config.time_zone = "Asia/Hong_Kong"
+    config.active_storage.variant_processor = :mini_magick
     # config.eager_load_paths << Rails.root.join("extras")
   end
 end
