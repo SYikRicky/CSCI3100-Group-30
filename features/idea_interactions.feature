@@ -4,7 +4,6 @@ Feature: Idea Interactions
   So that I can engage with trading ideas
   I want to like and comment on ideas
 
-  @javascript @allow-rescue
   Scenario: User likes an idea
     Given I am signed in as "alice@cuhk.edu.hk"
     And an idea exists with title "AAPL Bull Case" by "bob@cuhk.edu.hk"
@@ -12,7 +11,6 @@ Feature: Idea Interactions
     And I click the like button
     Then the like count should be 1
 
-  @javascript @allow-rescue
   Scenario: User unlikes an idea
     Given I am signed in as "alice@cuhk.edu.hk"
     And an idea exists with title "AAPL Bull Case" by "bob@cuhk.edu.hk"

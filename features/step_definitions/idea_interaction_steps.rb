@@ -15,7 +15,6 @@ end
 
 When(/^I click the like button$/) do
   find("[data-testid='like-button'] button").click
-  sleep 1
 end
 
 When(/^I fill in the comment form with "([^"]*)"$/) do |text|
