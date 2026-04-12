@@ -896,12 +896,6 @@
 
     chart.applyNewData(historical);
 
-    // Default view: scroll to June 1, 2023 so chart doesn't start at the end
-    const startTs = new Date('2023-06-01T00:00:00').getTime();
-    if (historical.length > 0 && historical[0].timestamp < startTs) {
-      chart.scrollToTimestamp(startTs);
-    }
-
     // Load saved drawings from localStorage on first load
     if (_drawingStore.length === 0) _loadDrawings();
     restoreDrawings();

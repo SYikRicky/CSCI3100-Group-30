@@ -51,7 +51,7 @@ puts "Stocks: #{Stock.count} total"
 
 # Fetch 1 year of historical data from Alpaca (skip if already seeded)
 start_date = "2023-01-01"
-end_date   = "2024-01-01"
+end_date   = "2023-06-01"
 
 Stock.find_each.with_index do |stock, idx|
   next if stock.price_snapshots.exists?
