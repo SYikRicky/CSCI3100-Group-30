@@ -132,7 +132,8 @@ export default class extends Controller {
           const template = document.createElement("template")
           template.innerHTML = data.trim()
           const turboStream = template.content.firstElementChild
-          if (turboStream && turboStream.tagName === "TURBO-STREAM") {
+          if (turboStream && turboStream.tagName === "TURBO-STREAM" &&
+              turboStream.getAttribute("target") === "chat-widget-messages") {
             const content = turboStream.querySelector("template")?.content
             if (content) {
               target.appendChild(content.cloneNode(true))

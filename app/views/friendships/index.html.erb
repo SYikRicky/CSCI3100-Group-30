@@ -90,10 +90,20 @@
                         color: #818cf8; font-size: 0.8rem; font-weight: 700;">
               <%= friend.display_name.first.upcase %>
             </div>
-            <div>
+            <div style="flex: 1; min-width: 0;">
               <p style="color: #EAECEF; font-size: 0.875rem; font-weight: 600; margin: 0;"><%= friend.display_name %></p>
               <p style="color: #929AA5; font-size: 0.78rem; margin: 0;"><%= friend.email %></p>
             </div>
+            <% if (fr = @friendship_by_friend[friend.id]) %>
+              <%= button_to "Remove", friendship_path(fr), method: :delete,
+                  data: { turbo_confirm: "Remove #{friend.display_name} from your friends?" },
+                  style: "padding: 0.4rem 0.9rem; background: rgba(255,255,255,0.04);
+                          color: #929AA5; border: 1px solid rgba(255,255,255,0.1);
+                          border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 600;
+                          transition: all 0.2s; flex-shrink: 0;",
+                  onmouseover: "this.style.background='rgba(246,70,93,0.12)'; this.style.color='#F6465D'; this.style.borderColor='rgba(246,70,93,0.25)'",
+                  onmouseout: "this.style.background='rgba(255,255,255,0.04)'; this.style.color='#929AA5'; this.style.borderColor='rgba(255,255,255,0.1)'" %>
+            <% end %>
           </li>
         <% end %>
       </ul>

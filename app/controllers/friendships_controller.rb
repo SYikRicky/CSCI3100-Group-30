@@ -4,6 +4,8 @@ class FriendshipsController < ApplicationController
   def index
     @friends          = current_user.friends
     @pending_requests = current_user.pending_received_requests.includes(:user)
+    @friendship_by_friend = current_user.sent_friendships.accepted.index_by(&:friend_id)
+                              .merge(current_user.received_friendships.accepted.index_by(&:user_id))
   end
 
   def create
