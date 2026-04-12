@@ -1,0 +1,121 @@
+<% content_for :title, @idea.title %>
+
+<%
+  dir_color = case @idea.direction
+              when "long"    then "#2EBD85"
+              when "short"   then "#F6465D"
+              else "#929AA5"
+              end
+  dir_bg = case @idea.direction
+           when "long"    then "rgba(46,189,133,0.12)"
+           when "short"   then "rgba(246,70,93,0.12)"
+           else "rgba(146,154,165,0.12)"
+           end
+%>
+
+<div data-testid="idea-detail" style="max-width: 860px; margin: 0 auto; padding: 2.5rem 1.5rem;">
+
+  <%# ── Back link ── %>
+  <%= link_to "Back to Ideas", ideas_path,
+      style: "color: #929AA5; font-size: 0.82rem; text-decoration: none; display: inline-flex;
+              align-items: center; gap: 0.3rem; margin-bottom: 1.5rem;"  %>
+
+  <%# ── Author section ── %>
+  <div data-testid="idea-author" style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.25rem;">
+    <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(20,184,166,0.15);
+                border: 1px solid rgba(20,184,166,0.3); display: flex; align-items: center;
+                justify-content: center; font-size: 1rem; font-weight: 700; color: #14B8A6;">
+      <%= @idea.user.display_name&.first&.upcase || "?" %>
+    </div>
+    <div>
+      <p style="color: #EAECEF; font-size: 0.9rem; font-weight: 600; margin: 0;">
+        <%= @idea.user.display_name %>
+      </p>
+      <p style="color: #929AA5; font-size: 0.75rem; margin: 0.1rem 0 0;">
+        Published <%= @idea.published_at&.strftime("%b %d, %Y at %H:%M") %>
+      </p>
+    </div>
+  </div>
+
+  <%# ── Title & badges ── %>
+  <h1 style="color: #EAECEF; font-size: 1.5rem; font-weight: 700; line-height: 1.4; margin: 0 0 0.75rem;">
+    <%= @idea.title %>
+  </h1>
+
+  <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+    <span style="display: inline-block; font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+                 letter-spacing: 0.06em; padding: 0.25rem 0.6rem; border-radius: 4px;
+                 color: <%= dir_color %>; background: <%= dir_bg %>;"><%= @idea.direction %></span>
+    <% if @idea.stock %>
+      <%= link_to stock_path(@idea.stock), style: "text-decoration: none;" do %>
+        <span style="font-size: 0.78rem; font-weight: 600; color: #14B8A6;
+                     padding: 0.2rem 0.5rem; background: rgba(20,184,166,0.08);
+                     border-radius: 4px;"><%= @idea.stock.ticker %></span>
+      <% end %>
+    <% end %>
+    <% @idea.idea_tags.each do |tag| %>
+      <span style="font-size: 0.7rem; color: #929AA5; padding: 0.2rem 0.5rem;
+                   background: rgba(255,255,255,0.04); border-radius: 4px;"><%= tag.name %></span>
+    <% end %>
+  </div>
+
+  <%# ── Body (Rich Text) ── %>
+  <div class="idea-body" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+              border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;
+              color: #EAECEF; font-size: 0.9rem; line-height: 1.7;">
+    <%= @idea.body %>
+  </div>
+
+  <%# ── Stats & Like button ── %>
+  <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 2rem;">
+    <%= render "ideas/like_button", idea: @idea, liked: @idea.liked_by?(current_user) %>
+
+    <span style="font-size: 0.82rem; color: #929AA5;">
+      <%= @idea.comments_count %> comments
+    </span>
+    <span style="font-size: 0.82rem; color: #929AA5;">
+      <%= @idea.views_count %> views
+    </span>
+
+    <% if @idea.user == current_user %>
+      <div style="margin-left: auto;">
+        <%= button_to "Delete", idea_path(@idea), method: :delete,
+            class: "bnb-btn-ghost",
+            style: "font-size: 0.78rem; color: #F6465D; border-color: rgba(246,70,93,0.3);",
+            data: { turbo_confirm: "Are you sure you want to delete this idea?" } %>
+      </div>
+    <% end %>
+  </div>
+
+  <%# ── Comment form ── %>
+  <div data-testid="comment-form" style="margin-bottom: 2rem;">
+    <h3 style="color: #EAECEF; font-size: 0.95rem; font-weight: 600; margin: 0 0 0.75rem;">
+      Leave a Comment
+    </h3>
+    <%= form_with model: @new_comment, url: idea_idea_comments_path(@idea), method: :post do |f| %>
+      <div style="margin-bottom: 0.75rem;">
+        <%= f.text_area :body, rows: 3, placeholder: "Share your thoughts...",
+            class: "bnb-input", style: "resize: vertical; min-height: 80px; width: 100%;" %>
+      </div>
+      <%= f.submit "Post Comment", class: "bnb-btn-primary", style: "font-size: 0.85rem;" %>
+    <% end %>
+  </div>
+
+  <%# ── Comments section ── %>
+  <div data-testid="comments-section">
+    <h3 style="color: #EAECEF; font-size: 0.95rem; font-weight: 600; margin: 0 0 1rem;">
+      Comments (<%= @idea.comments_count %>)
+    </h3>
+
+    <% if @comments.any? %>
+      <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+        <% @comments.each do |comment| %>
+          <%= render "ideas/comment", comment: comment %>
+        <% end %>
+      </div>
+    <% else %>
+      <p style="color: #929AA5; font-size: 0.85rem;">No comments yet. Be the first to share your thoughts!</p>
+    <% end %>
+  </div>
+
+</div>

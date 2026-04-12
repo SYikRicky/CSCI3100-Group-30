@@ -1,0 +1,79 @@
+<% content_for :title, "Community Ideas" %>
+
+<div style="max-width: 1280px; margin: 0 auto; padding: 2.5rem 1.5rem;">
+
+  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+      <h1 class="tw-font-custom" style="color: #EAECEF; font-size: 1.75rem; letter-spacing: 0.1em;
+                  text-transform: uppercase; margin: 0 0 0.25rem;">Community Ideas</h1>
+      <p style="color: #929AA5; font-size: 0.82rem; margin: 0;">
+        Discover and share trading analysis with the community.
+      </p>
+    </div>
+    <%= link_to "+ New Idea", new_idea_path, class: "bnb-btn-primary",
+        style: "text-decoration: none;" %>
+  </div>
+
+  <%# ── Sort & Filter Bar ── %>
+  <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+    <div style="display: flex; gap: 0.25rem; background: rgba(255,255,255,0.04);
+                border-radius: 8px; padding: 0.2rem;">
+      <%= link_to "Most Recent", ideas_path(tag: params[:tag], stock_id: params[:stock_id]),
+          style: "padding: 0.4rem 0.85rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600;
+                  text-decoration: none; transition: all 0.15s;
+                  #{params[:sort] != 'popular' ? 'background: rgba(20,184,166,0.15); color: #14B8A6;' : 'background: transparent; color: #929AA5;'}" %>
+      <%= link_to "Most Popular", ideas_path(sort: "popular", tag: params[:tag], stock_id: params[:stock_id]),
+          style: "padding: 0.4rem 0.85rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600;
+                  text-decoration: none; transition: all 0.15s;
+                  #{params[:sort] == 'popular' ? 'background: rgba(20,184,166,0.15); color: #14B8A6;' : 'background: transparent; color: #929AA5;'}" %>
+    </div>
+
+    <% if @idea_tags.any? %>
+      <select onchange="window.location.href=this.value"
+              style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
+                     border-radius: 6px; color: #929AA5; font-size: 0.8rem; padding: 0.4rem 0.6rem;
+                     cursor: pointer;">
+        <option value="<%= ideas_path(sort: params[:sort], stock_id: params[:stock_id]) %>"
+                <%= 'selected' unless params[:tag].present? %>>All Tags</option>
+        <% @idea_tags.each do |tag| %>
+          <option value="<%= ideas_path(tag: tag.id, sort: params[:sort], stock_id: params[:stock_id]) %>"
+                  <%= 'selected' if params[:tag].to_s == tag.id.to_s %>><%= tag.name %></option>
+        <% end %>
+      </select>
+    <% end %>
+
+    <% if @stocks.any? %>
+      <select onchange="window.location.href=this.value"
+              style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
+                     border-radius: 6px; color: #929AA5; font-size: 0.8rem; padding: 0.4rem 0.6rem;
+                     cursor: pointer;">
+        <option value="<%= ideas_path(sort: params[:sort], tag: params[:tag]) %>"
+                <%= 'selected' unless params[:stock_id].present? %>>All Stocks</option>
+        <% @stocks.each do |stock| %>
+          <option value="<%= ideas_path(stock_id: stock.id, sort: params[:sort], tag: params[:tag]) %>"
+                  <%= 'selected' if params[:stock_id].to_s == stock.id.to_s %>><%= stock.ticker %></option>
+        <% end %>
+      </select>
+    <% end %>
+  </div>
+
+  <%# ── Ideas Feed ── %>
+  <div data-testid="ideas-feed" style="display: flex; flex-direction: column; gap: 1rem;">
+    <% if @ideas.any? %>
+      <% @ideas.each do |idea| %>
+        <%= render "ideas/idea_card", idea: idea %>
+      <% end %>
+    <% else %>
+      <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+                  border-radius: 12px; padding: 4rem; text-align: center;">
+        <p style="color: #929AA5; font-size: 0.95rem; margin: 0 0 0.5rem;">No ideas yet.</p>
+        <p style="color: #929AA5; font-size: 0.82rem; margin: 0 0 1.5rem; opacity: 0.6;">
+          Be the first to share your trading analysis!
+        </p>
+        <%= link_to "Publish an Idea", new_idea_path, class: "bnb-btn-primary",
+            style: "text-decoration: none;" %>
+      </div>
+    <% end %>
+  </div>
+
+</div>

@@ -16,14 +16,14 @@ Then(/^the logo should link to the home page$/) do
   end
 end
 
-Then(/^I should see a "Friends" link in the navigation bar$/) do
+Then(/^I should see a "([^"]*)" link in the navigation bar$/) do |text|
   within("nav[data-testid='main-nav']") do
-    expect(page).to have_link("Friends")
+    expect(page).to have_link(text)
   end
 end
 
-Then(/^I should not see a "Friends" link in the navigation bar$/) do
+Then(/^I should not see a "([^"]*)" link in the navigation bar$/) do |text|
   within("nav[data-testid='main-nav']") do
-    expect(page).not_to have_link("Friends")
+    expect(page).not_to have_link(text)
   end
 end

@@ -1,0 +1,93 @@
+<% content_for :title, "New Idea" %>
+
+<div data-testid="new-idea-form" style="max-width: 720px; margin: 0 auto; padding: 2.5rem 1.5rem;">
+
+  <%= link_to "Back to Ideas", ideas_path,
+      style: "color: #929AA5; font-size: 0.82rem; text-decoration: none; display: inline-flex;
+              align-items: center; gap: 0.3rem; margin-bottom: 1.5rem;" %>
+
+  <h1 class="tw-font-custom" style="color: #EAECEF; font-size: 1.5rem; letter-spacing: 0.1em;
+              text-transform: uppercase; margin: 0 0 0.25rem;">Publish an Idea</h1>
+  <p style="color: #929AA5; font-size: 0.82rem; margin: 0 0 2rem;">
+    Share your trading analysis with the community.
+  </p>
+
+  <% if @idea.errors.any? %>
+    <div style="background: rgba(246,70,93,0.12); border: 1px solid rgba(246,70,93,0.3);
+                border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1.5rem;">
+      <% @idea.errors.full_messages.each do |msg| %>
+        <p style="color: #F6465D; font-size: 0.82rem; margin: 0.15rem 0;"><%= msg %></p>
+      <% end %>
+    </div>
+  <% end %>
+
+  <%= form_with model: @idea, url: ideas_path, method: :post do |f| %>
+
+    <%# ── Title ── %>
+    <div style="margin-bottom: 1.25rem;">
+      <%= f.label :title, style: "display: block; color: #929AA5; font-size: 0.75rem; font-weight: 700;
+                  text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;" %>
+      <%= f.text_field :title, placeholder: "e.g. AAPL Breakout Setup", class: "bnb-input",
+          style: "width: 100%;" %>
+    </div>
+
+    <%# ── Body (Rich Text with image support) ── %>
+    <div style="margin-bottom: 1.25rem;">
+      <%= f.label :body, "Analysis", style: "display: block; color: #929AA5; font-size: 0.75rem; font-weight: 700;
+                  text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;" %>
+      <%= f.rich_text_area :body, style: "min-height: 200px;" %>
+    </div>
+
+    <%# ── Direction ── %>
+    <div style="margin-bottom: 1.25rem;">
+      <label style="display: block; color: #929AA5; font-size: 0.75rem; font-weight: 700;
+                    text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.6rem;">Direction</label>
+      <div style="display: flex; gap: 0.75rem;">
+        <label style="display: flex; align-items: center; gap: 0.35rem; cursor: pointer;
+                      color: #2EBD85; font-size: 0.85rem; font-weight: 600;">
+          <%= f.radio_button :direction, "long", style: "accent-color: #2EBD85;" %> Long
+        </label>
+        <label style="display: flex; align-items: center; gap: 0.35rem; cursor: pointer;
+                      color: #F6465D; font-size: 0.85rem; font-weight: 600;">
+          <%= f.radio_button :direction, "short", style: "accent-color: #F6465D;" %> Short
+        </label>
+        <label style="display: flex; align-items: center; gap: 0.35rem; cursor: pointer;
+                      color: #929AA5; font-size: 0.85rem; font-weight: 600;">
+          <%= f.radio_button :direction, "neutral", style: "accent-color: #929AA5;" %> Neutral
+        </label>
+      </div>
+    </div>
+
+    <%# ── Stock ── %>
+    <div style="margin-bottom: 1.25rem;">
+      <%= f.label :stock_id, "Stock (optional)", style: "display: block; color: #929AA5; font-size: 0.75rem;
+                  font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;" %>
+      <%= f.select :stock_id, @stocks.map { |s| ["#{s.ticker} — #{s.company_name}", s.id] },
+          { include_blank: "Select a stock…" }, class: "bnb-input", style: "width: 100%;" %>
+    </div>
+
+    <%# ── Tags ── %>
+    <% if @idea_tags.any? %>
+      <div style="margin-bottom: 1.25rem;">
+        <label style="display: block; color: #929AA5; font-size: 0.75rem; font-weight: 700;
+                      text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.6rem;">Tags</label>
+        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+          <% @idea_tags.each do |tag| %>
+            <label style="display: flex; align-items: center; gap: 0.3rem; cursor: pointer;
+                          color: #929AA5; font-size: 0.82rem; background: rgba(255,255,255,0.04);
+                          padding: 0.35rem 0.65rem; border-radius: 6px;
+                          border: 1px solid rgba(255,255,255,0.08);">
+              <%= check_box_tag "idea[idea_tag_ids][]", tag.id, false,
+                  style: "accent-color: #14B8A6;" %>
+              <%= tag.name %>
+            </label>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+
+    <%= f.submit "Publish Idea", class: "bnb-btn-primary",
+        style: "width: 100%; padding: 0.85rem; font-size: 0.95rem;" %>
+  <% end %>
+
+</div>

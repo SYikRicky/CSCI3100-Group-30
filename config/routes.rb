@@ -30,6 +30,10 @@ Rails.application.routes.draw do
     get  :conversation, to: "base#conversation"
     patch :mark_read,   to: "base#mark_read"
   end
+  resources :ideas, only: [ :index, :show, :new, :create, :destroy ] do
+    resource :likes, only: [ :create, :destroy ], controller: "idea_likes"
+    resources :idea_comments, only: [ :create ]
+  end
   resources :portfolios, only: [ :show ] do
     resources :trades, only: [ :create, :update ] do
       member { patch :cancel }

@@ -7,3 +7,15 @@
 #   ["Action", "Comedy", "Drama", "Horror"].each do |genre_name|
 #     MovieGenre.find_or_create_by!(name: genre_name)
 #   end
+
+# Idea tags for the Community feature
+%w[
+  Technical\ Analysis
+  Fundamental\ Analysis
+  Earnings
+  Macro
+  Sector\ Rotation
+  Swing\ Trade
+  Day\ Trade
+  Long\ Term
+].each { |name| IdeaTag.find_or_create_by!(name: name) }
