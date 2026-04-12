@@ -7,5 +7,7 @@ FactoryBot.define do
     quantity { 10 }
     price_at_trade { 150.0 }
     executed_at { Time.current }
+    order_type { "market" }
+    status { "filled" }
   end
 end

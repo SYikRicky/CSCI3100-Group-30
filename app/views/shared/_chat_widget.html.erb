@@ -1,0 +1,79 @@
+<%# ── Floating chat widget (bottom-right) ── %>
+<div data-controller="chat-widget"
+     data-chat-widget-friends-url-value="<%= chat_widget_friends_path %>"
+     data-chat-widget-conversation-url-value="<%= chat_widget_conversation_path %>"
+     data-chat-widget-mark-read-url-value="<%= chat_widget_mark_read_path %>"
+     data-chat-widget-send-url-value="<%= chatroom_messages_path(chatroom_id: '__FRIEND_ID__') %>"
+     data-chat-widget-current-user-id-value="<%= current_user.id %>"
+     data-testid="chat-widget"
+     style="position: fixed; bottom: 1.25rem; right: 1.25rem; z-index: 1000;">
+
+  <%# ── Toggle button ── %>
+  <button data-action="click->chat-widget#toggle" data-testid="chat-widget-btn"
+          style="width: 52px; height: 52px; border-radius: 50%; border: none; cursor: pointer;
+                 background: #14B8A6; color: #181A20; font-size: 1.35rem; font-weight: 700;
+                 display: flex; align-items: center; justify-content: center;
+                 box-shadow: 0 4px 16px rgba(0,0,0,0.4); transition: background 0.2s; position: relative;"
+          onmouseover="this.style.background='#0d9488'" onmouseout="this.style.background='#14B8A6'">
+    💬
+    <span data-chat-widget-target="badge"
+          style="position: absolute; top: -2px; right: -2px; background: #F6465D; color: #fff;
+                 font-size: 0.6rem; font-weight: 700; min-width: 18px; height: 18px;
+                 border-radius: 9px; align-items: center; justify-content: center;
+                 padding: 0 4px; display: <%= @unread_messages_count&.positive? ? 'flex' : 'none' %>;">
+      <span data-chat-widget-target="badgeCount"><%= @unread_messages_count&.positive? ? @unread_messages_count : '' %></span>
+    </span>
+  </button>
+
+  <%# ── Chat panel ── %>
+  <div data-chat-widget-target="panel" data-testid="chat-widget-panel"
+       style="display: none; flex-direction: column; position: absolute; bottom: 62px; right: 0;
+              width: 340px; height: 440px; background: #12141e;
+              border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
+              box-shadow: 0 8px 32px rgba(0,0,0,0.5); overflow: hidden;">
+
+    <%# ── Friend list view ── %>
+    <div data-chat-widget-target="friendList" style="display: block; flex: 1; overflow-y: auto; padding: 0.75rem;">
+      <p style="color: #929AA5; font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+                letter-spacing: 0.08em; margin: 0 0 0.6rem;">Chats</p>
+      <p style="color: #929AA5; font-size: 0.82rem;">Loading...</p>
+    </div>
+
+    <%# ── Conversation view ── %>
+    <div data-chat-widget-target="chatView"
+         style="display: none; flex-direction: column; flex: 1; min-height: 0;">
+
+      <%# Chat header %>
+      <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 0.75rem;
+                  border-bottom: 1px solid rgba(255,255,255,0.08); flex-shrink: 0;">
+        <button data-action="click->chat-widget#back"
+                style="background: none; border: none; color: #929AA5; cursor: pointer;
+                       font-size: 1rem; padding: 0.2rem 0.4rem; border-radius: 4px;"
+                onmouseover="this.style.color='#EAECEF'" onmouseout="this.style.color='#929AA5'">
+          ←
+        </button>
+        <span data-chat-widget-target="chatHeader"
+              style="color: #EAECEF; font-weight: 600; font-size: 0.85rem;"></span>
+      </div>
+
+      <%# Messages %>
+      <div id="chat-widget-messages" data-chat-widget-target="messageList"
+           style="flex: 1; overflow-y: auto; padding: 0.5rem 0.75rem; min-height: 0;">
+      </div>
+
+      <%# Input form %>
+      <form data-action="submit->chat-widget#send"
+            style="display: flex; gap: 0.5rem; padding: 0.5rem 0.75rem;
+                   border-top: 1px solid rgba(255,255,255,0.08); flex-shrink: 0;">
+        <input data-chat-widget-target="messageInput" type="text"
+               placeholder="Type a message..."
+               class="bnb-input" data-testid="chat-widget-input"
+               style="flex: 1; padding: 0.45rem 0.65rem; font-size: 0.8rem;">
+        <button type="submit" class="bnb-btn-primary"
+                style="padding: 0.45rem 0.85rem; font-size: 0.8rem; flex-shrink: 0;">
+          Send
+        </button>
+      </form>
+    </div>
+  </div>
+</div>

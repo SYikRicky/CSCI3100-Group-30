@@ -1,0 +1,78 @@
+<% content_for :title, "Chatroom" %>
+
+<% if @dm_stream %>
+  <%= turbo_stream_from @dm_stream %>
+<% end %>
+
+<div style="max-width: 1280px; margin: 0 auto; padding: 2rem 1.5rem;">
+  <h1 class="tw-font-custom" style="color: #EAECEF; font-size: 1.5rem; letter-spacing: 0.06em;
+                                      margin: 0 0 1.5rem;">Chatroom</h1>
+
+  <div style="display: flex; gap: 1.5rem; min-height: 420px; align-items: stretch;">
+
+    <%# ── Sidebar: friends list ── %>
+    <aside class="bnb-card" data-testid="chatroom-sidebar"
+           style="flex: 0 0 260px; border-radius: 12px; padding: 1rem;">
+      <p style="color: #929AA5; font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+                letter-spacing: 0.08em; margin: 0 0 0.75rem;">Friends</p>
+
+      <% if @friends.any? %>
+        <nav style="display: flex; flex-direction: column; gap: 0.25rem;">
+          <% @friends.each do |friend| %>
+            <% active = @selected_friend&.id == friend.id %>
+            <%= link_to chatrooms_path(friend_id: friend.id),
+                data: { testid: "chat-friend-link-#{friend.id}" },
+                style: "text-decoration: none; padding: 0.55rem 0.65rem; border-radius: 8px;
+                        font-size: 0.85rem; transition: background 0.15s;
+                        #{active ? 'background: rgba(20,184,166,0.15); color: #14B8A6;' : 'color: #EAECEF; background: transparent;'}" do %>
+              <span style="font-weight: 600;"><%= friend.display_name %></span>
+              <span style="display: block; color: #929AA5; font-size: 0.72rem; margin-top: 0.15rem;"><%= friend.email %></span>
+            <% end %>
+          <% end %>
+        </nav>
+      <% else %>
+        <p style="color: #929AA5; font-size: 0.85rem; margin: 0;">No friends yet. Add friends from the Friends page.</p>
+        <%= link_to "Go to Friends", friendships_path,
+            style: "display: inline-block; margin-top: 0.75rem; color: #14B8A6; font-size: 0.85rem;" %>
+      <% end %>
+    </aside>
+
+    <%# ── Main pane ── %>
+    <section class="bnb-card" data-testid="chatroom-main"
+            style="flex: 1; border-radius: 12px; padding: 1rem; display: flex; flex-direction: column;
+              min-width: 0; height: 70vh; max-height: 720px; min-height: 420px;">
+
+      <% if @selected_friend %>
+        <div style="border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.75rem; margin-bottom: 0.75rem;">
+          <p style="color: #929AA5; font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+                    letter-spacing: 0.08em; margin: 0 0 0.25rem;">Chatting with</p>
+          <p style="color: #EAECEF; font-size: 1rem; font-weight: 600; margin: 0;"><%= @selected_friend.display_name %></p>
+          <p style="color: #929AA5; font-size: 0.8rem; margin: 0.25rem 0 0;"><%= @selected_friend.email %></p>
+        </div>
+
+        <div id="chat-messages" data-testid="chat-messages"
+             style="flex: 1; min-height: 0; overflow-y: auto; margin-bottom: 1rem;">
+          <%= render partial: "messages/message", collection: @messages, as: :message %>
+        </div>
+
+        <%= form_with url: chatroom_messages_path(chatroom_id: @selected_friend.id), method: :post, scope: :message,
+            html: { data: { testid: "chat-message-form" } } do |f| %>
+          <div style="display: flex; gap: 0.75rem; align-items: flex-end; border-top: 1px solid rgba(255,255,255,0.08);
+                      padding-top: 0.75rem; margin-top: auto;">
+            <%= f.text_area :content, rows: 2, required: true, placeholder: "Type a message…",
+                class: "bnb-input", style: "resize: vertical; min-height: 44px;",
+                data: { testid: "chat-message-input" } %>
+            <%= f.submit "Send", class: "bnb-btn-primary", style: "flex-shrink: 0;",
+                data: { testid: "chat-send-button" } %>
+          </div>
+        <% end %>
+      <% else %>
+        <div style="flex: 1; display: flex; align-items: center; justify-content: center;">
+          <p data-testid="chatroom-empty-state" style="color: #929AA5; font-size: 0.9rem; text-align: center; margin: 0;">
+            Select a friend from the list to start a private conversation.
+          </p>
+        </div>
+      <% end %>
+    </section>
+  </div>
+</div>

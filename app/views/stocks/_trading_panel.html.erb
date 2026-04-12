@@ -1,0 +1,139 @@
+<%# ══════════════════════════════════════════════════════════════ %>
+<%# ── Bottom Trading Panel (TradingView-style) ── %>
+<%# ══════════════════════════════════════════════════════════════ %>
+<div id="trading-panel"
+     style="position: fixed; bottom: 0; left: 0; right: 0; height: 240px; z-index: 50;
+            background: #0d0f17; border-top: 1px solid rgba(255,255,255,0.1);
+            display: flex; flex-direction: column; font-size: 0.78rem;">
+
+  <%# ── Panel header: account selector + stats + buy/sell ── %>
+  <div style="display: flex; align-items: center; padding: 0.4rem 1rem; gap: 1rem;
+              border-bottom: 1px solid rgba(255,255,255,0.07); flex-shrink: 0;">
+
+    <%# Paper Trading badge %>
+    <span style="background: rgba(20,184,166,0.12); color: #14B8A6; font-size: 0.68rem;
+                 font-weight: 700; padding: 0.15rem 0.6rem; border-radius: 4px;
+                 letter-spacing: 0.05em; flex-shrink: 0;">Paper Trading</span>
+
+    <%# Portfolio / League selector %>
+    <% if @portfolios.any? %>
+      <select id="panel-portfolio-select"
+              onchange="onPanelPortfolioChange()"
+              style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+                     border-radius: 4px; color: #EAECEF; font-size: 0.75rem; padding: 0.2rem 0.5rem;
+                     cursor: pointer; max-width: 200px;">
+        <% @portfolios.each do |p| %>
+          <option value="<%= p.id %>"><%= p.league.name %></option>
+        <% end %>
+      </select>
+    <% end %>
+
+    <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.08);"></div>
+
+    <%# Account stats (updated by JS) %>
+    <div style="display: flex; gap: 1.5rem; flex: 1; color: #929AA5; font-size: 0.72rem;">
+      <span>Cash <strong id="panel-cash" style="color: #EAECEF; margin-left: 0.3rem;">—</strong></span>
+      <span>Holdings <strong id="panel-holdings-val" style="color: #EAECEF; margin-left: 0.3rem;">—</strong></span>
+      <span>Total <strong id="panel-total-val" style="color: #EAECEF; margin-left: 0.3rem;">—</strong></span>
+      <span>P&L <strong id="panel-pnl" style="margin-left: 0.3rem;">—</strong></span>
+    </div>
+
+    <%# Buy / Sell buttons %>
+    <div style="display: flex; gap: 0.4rem; flex-shrink: 0;">
+      <button onclick="openTradeModal('buy')"
+              style="background: #2EBD85; color: #fff; font-weight: 700; font-size: 0.75rem;
+                     border: none; border-radius: 4px; padding: 0.35rem 1.2rem; cursor: pointer;
+                     transition: background 0.15s;"
+              onmouseover="this.style.background='#25a673'" onmouseout="this.style.background='#2EBD85'">
+        ▲ Buy
+      </button>
+      <button onclick="openTradeModal('sell')"
+              style="background: #F6465D; color: #fff; font-weight: 700; font-size: 0.75rem;
+                     border: none; border-radius: 4px; padding: 0.35rem 1.2rem; cursor: pointer;
+                     transition: background 0.15s;"
+              onmouseover="this.style.background='#d93650'" onmouseout="this.style.background='#F6465D'">
+        ▼ Sell
+      </button>
+    </div>
+  </div>
+
+  <%# ── Tab bar ── %>
+  <div style="display: flex; border-bottom: 1px solid rgba(255,255,255,0.07); flex-shrink: 0;">
+    <% ["Positions", "Open Orders", "Order History"].each_with_index do |tab, i| %>
+      <button class="panel-tab" data-tab="<%= tab.downcase.gsub(' ', '-') %>"
+              onclick="switchPanelTab(this)"
+              style="padding: 0.4rem 1rem; background: none; border: none;
+                     border-bottom: 2px solid <%= i == 0 ? '#14B8A6' : 'transparent' %>;
+                     color: <%= i == 0 ? '#14B8A6' : '#929AA5' %>; font-size: 0.72rem;
+                     font-weight: 600; cursor: pointer; transition: all 0.15s;">
+        <%= tab %>
+      </button>
+    <% end %>
+  </div>
+
+  <%# ── Tab content (scrollable) ── %>
+  <div style="flex: 1; overflow-y: auto;">
+
+    <%# Positions tab %>
+    <div id="tab-positions" class="panel-tab-content" style="">
+      <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+          <tr style="color: #929AA5; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em;">
+            <th style="padding: 0.4rem 1rem; text-align: left; font-weight: 600;">Symbol</th>
+            <th style="padding: 0.4rem 0.5rem; text-align: right; font-weight: 600;">Qty</th>
+            <th style="padding: 0.4rem 0.5rem; text-align: right; font-weight: 600;">Avg Cost</th>
+            <th style="padding: 0.4rem 0.5rem; text-align: right; font-weight: 600;">Current</th>
+            <th style="padding: 0.4rem 0.5rem; text-align: right; font-weight: 600;">Market Value</th>
+            <th style="padding: 0.4rem 1rem; text-align: right; font-weight: 600;">P&L</th>
+          </tr>
+        </thead>
+        <tbody id="positions-body"></tbody>
+      </table>
+      <div id="positions-empty" style="display: none; padding: 1.5rem; text-align: center; color: #929AA5; font-size: 0.8rem;">
+        No positions yet. Start trading to build your portfolio.
+      </div>
+    </div>
+
+    <%# Open Orders tab %>
+    <div id="tab-open-orders" class="panel-tab-content" style="display: none;">
+      <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+          <tr style="color: #929AA5; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em;">
+            <th style="padding: 0.4rem 1rem; text-align: left; font-weight: 600;">Symbol</th>
+            <th style="padding: 0.4rem 0.5rem; text-align: left; font-weight: 600;">Type</th>
+            <th style="padding: 0.4rem 0.5rem; text-align: left; font-weight: 600;">Side</th>
+            <th style="padding: 0.4rem 0.5rem; text-align: right; font-weight: 600;">Qty</th>
+            <th style="padding: 0.4rem 0.5rem; text-align: right; font-weight: 600;">Price</th>
+            <th style="padding: 0.4rem 0.5rem; text-align: left; font-weight: 600;">Placed</th>
+            <th style="padding: 0.4rem 1rem; text-align: center; font-weight: 600;">Action</th>
+          </tr>
+        </thead>
+        <tbody id="orders-body"></tbody>
+      </table>
+      <div id="orders-empty" style="display: none; padding: 1.5rem; text-align: center; color: #929AA5; font-size: 0.8rem;">
+        No open orders.
+      </div>
+    </div>
+
+    <%# Order History tab %>
+    <div id="tab-order-history" class="panel-tab-content" style="display: none;">
+      <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+          <tr style="color: #929AA5; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em;">
+            <th style="padding: 0.4rem 1rem; text-align: left; font-weight: 600;">Symbol</th>
+            <th style="padding: 0.4rem 0.5rem; text-align: left; font-weight: 600;">Type</th>
+            <th style="padding: 0.4rem 0.5rem; text-align: left; font-weight: 600;">Side</th>
+            <th style="padding: 0.4rem 0.5rem; text-align: right; font-weight: 600;">Qty</th>
+            <th style="padding: 0.4rem 0.5rem; text-align: right; font-weight: 600;">Price</th>
+            <th style="padding: 0.4rem 0.5rem; text-align: left; font-weight: 600;">Status</th>
+            <th style="padding: 0.4rem 1rem; text-align: left; font-weight: 600;">Date</th>
+          </tr>
+        </thead>
+        <tbody id="history-body"></tbody>
+      </table>
+      <div id="history-empty" style="display: none; padding: 1.5rem; text-align: center; color: #929AA5; font-size: 0.8rem;">
+        No trade history yet.
+      </div>
+    </div>
+  </div>
+</div>

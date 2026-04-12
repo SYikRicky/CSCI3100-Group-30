@@ -1,8 +1,14 @@
-puts "Clearing existing data..."
-PriceSnapshot.delete_all
-Stock.delete_all
-puts "Existing data cleared."
+# This file should ensure the existence of records required to run the application in every environment (production,
+# development, test). The code here should be idempotent so that it can be executed at any point in every environment.
+# The data can then be loaded with the bin/rails db:seed command (or created alongside the database with db:setup).
+#
+# Example:
+#
+#   ["Action", "Comedy", "Drama", "Horror"].each do |genre_name|
+#     MovieGenre.find_or_create_by!(name: genre_name)
+#   end
 
+# ── Stocks + Historical Price Data (1 year from Alpaca) ──
 stocks_seed = [
   { ticker: "AAPL", company_name: "Apple Inc." },
   { ticker: "MSFT", company_name: "Microsoft Corporation" },
@@ -11,7 +17,7 @@ stocks_seed = [
   { ticker: "NVDA", company_name: "NVIDIA Corporation" },
   { ticker: "TSLA", company_name: "Tesla, Inc." },
   { ticker: "META", company_name: "Meta Platforms, Inc." },
-  { ticker: 'IBM', company_name: 'International Business Machines' },
+  { ticker: "IBM", company_name: "International Business Machines" },
   { ticker: "JPM", company_name: "JPMorgan Chase & Co." },
   { ticker: "V", company_name: "Visa Inc." },
   { ticker: "JNJ", company_name: "Johnson & Johnson" },
@@ -34,29 +40,39 @@ stocks_seed = [
   { ticker: "DIS", company_name: "The Walt Disney Company" },
   { ticker: "INTC", company_name: "Intel Corporation" },
   { ticker: "SBUX", company_name: "Starbucks Corporation" }
-].freeze
+]
 
-puts "Creating stocks..."
-stocks = stocks_seed.map { |attrs| Stock.create!(attrs) }
-puts "Created #{stocks.size} stocks."
+stocks_seed.each do |attrs|
+  Stock.find_or_create_by!(ticker: attrs[:ticker]) do |s|
+    s.company_name = attrs[:company_name]
+  end
+end
+puts "Stocks: #{Stock.count} total"
 
-start_date = "2011-01-01"
-end_date = "2012-12-31"
+# Fetch 1 year of historical data from Alpaca (skip if already seeded)
+start_date = "2023-01-01"
+end_date   = "2023-06-01"
 
-puts "Seeding historical price data (#{start_date} to #{end_date})..."
-total_inserted = 0
+Stock.find_each.with_index do |stock, idx|
+  next if stock.price_snapshots.exists?
 
-stocks.each_with_index do |stock, idx|
-  puts "[#{idx + 1}/#{stocks.size}] Fetching data for #{stock.ticker}..."
-
-  before_count = PriceSnapshot.where(stock_id: stock.id).count
+  puts "[#{idx + 1}/#{Stock.count}] Fetching #{stock.ticker}..."
   HistoricalDataSeedJob.perform_now(stock.id, start_date, end_date)
-  after_count = PriceSnapshot.where(stock_id: stock.id).count
-
-  inserted = after_count - before_count
-  total_inserted += inserted
-
-  puts "Fetched #{stock.ticker}: inserted #{inserted} price snapshots (total so far: #{total_inserted})."
+  puts "  → #{stock.price_snapshots.count} snapshots"
+rescue => e
+  puts "  ⚠ Skipped #{stock.ticker}: #{e.message}"
 end
 
-puts "Successfully seeded #{Stock.count} stocks and #{PriceSnapshot.count} price snapshots."
+puts "Total price snapshots: #{PriceSnapshot.count}"
+
+# ── Idea tags for the Community feature ──
+%w[
+  Technical\ Analysis
+  Fundamental\ Analysis
+  Earnings
+  Macro
+  Sector\ Rotation
+  Swing\ Trade
+  Day\ Trade
+  Long\ Term
+].each { |name| IdeaTag.find_or_create_by!(name: name) }

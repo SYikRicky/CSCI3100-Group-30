@@ -1,0 +1,1720 @@
+<% content_for :title, "#{@stock.ticker} — #{@stock.company_name}" %>
+
+<%= render "stocks/info_bar" %>
+
+<%= render "stocks/drawing_toolbar" %>
+
+<%# ── Chart (above trading panel) ── %>
+<div id="chart-container"
+     style="position: fixed; top: 120px; left: 50px; right: 0; bottom: 240px; z-index: 1;"></div>
+<div id="chart-order-buttons" style="position: fixed; right: 60px; top: 120px; bottom: 240px; z-index: 10; pointer-events: none;"></div>
+
+<%= render "stocks/context_menu" %>
+
+<%= render "stocks/trading_panel" %>
+
+<%= render "stocks/trade_modal" %>
+
+<%# ══════════════════════════════════════════════════════════════ %>
+<%# ── Embedded data for JS ── %>
+<%# ══════════════════════════════════════════════════════════════ %>
+<script>
+  const PORTFOLIO_CASH     = <%= raw @portfolio_cash.to_json %>;
+  const PORTFOLIO_HOLDINGS = <%= raw @my_holdings.to_json %>;
+  const ALL_HOLDINGS       = <%= raw @all_holdings.to_json %>;
+  const PENDING_ORDERS     = <%= raw @pending_orders.to_json %>;
+  const TRADE_HISTORY      = <%= raw @trade_history.to_json %>;
+  const STOCK_TICKER       = '<%= @stock.ticker %>';
+  const STOCK_ID           = '<%= @stock.id %>';
+</script>
+
+<%# ══════════════════════════════════════════════════════════════ %>
+<%# ── Trading panel + modal JS ── %>
+<%# ══════════════════════════════════════════════════════════════ %>
+<script>
+(function () {
+  const TRADE_COLORS = { buy: '#2EBD85', sell: '#F6465D' };
+  let _tradeAction = 'buy';
+  let _orderType   = 'market';
+
+  /* ── Helpers ── */
+  function fmtMoney(v) {
+    return '$' + Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  window.getLivePrice = function () {
+    const el  = document.getElementById('live-price');
+    const raw = el ? el.textContent.replace('$', '').replace(/,/g, '') : '0';
+    return parseFloat(raw) || 0;
+  };
+
+  function selectedPortfolioId() {
+    const sel = document.getElementById('trade-portfolio-select');
+    return sel && sel.value ? String(sel.value) : null;
+  }
+
+  function panelPortfolioId() {
+    const sel = document.getElementById('panel-portfolio-select');
+    return sel && sel.value ? String(sel.value) : selectedPortfolioId();
+  }
+
+  /* ── Panel tab switching ── */
+  window.switchPanelTab = function (btn) {
+    document.querySelectorAll('.panel-tab').forEach(b => {
+      b.style.borderBottomColor = 'transparent';
+      b.style.color = '#929AA5';
+    });
+    btn.style.borderBottomColor = '#14B8A6';
+    btn.style.color = '#14B8A6';
+    document.querySelectorAll('.panel-tab-content').forEach(c => c.style.display = 'none');
+    document.getElementById('tab-' + btn.dataset.tab).style.display = '';
+  };
+
+  /* ── Panel portfolio change ── */
+  window.onPanelPortfolioChange = function () {
+    const pid = panelPortfolioId();
+    // Sync modal portfolio selector
+    const modalSel = document.getElementById('trade-portfolio-select');
+    if (modalSel) modalSel.value = pid;
+    renderPanel();
+    if (window.renderOrderOverlays) window.renderOrderOverlays();
+    if (window.drawPositionLines) window.drawPositionLines();
+  };
+
+  /* ── Render panel data ── */
+  function renderPanel() {
+    const pid = panelPortfolioId();
+    const cash = PORTFOLIO_CASH[pid] || 0;
+
+    // Positions
+    const posBody = document.getElementById('positions-body');
+    const posEmpty = document.getElementById('positions-empty');
+    const holdings = ALL_HOLDINGS[pid] || [];
+    posBody.innerHTML = '';
+
+    let holdingsValue = 0;
+    let totalPnl = 0;
+
+    holdings.forEach(h => {
+      const isShort = h.direction === 'short';
+      const mktVal = h.quantity * h.current_price;
+      const cost   = h.quantity * h.average_cost;
+      // Short P&L: profit when price drops (entry - current) * qty
+      const pnl    = isShort ? (cost - mktVal) : (mktVal - cost);
+      const pnlPct = cost > 0 ? (pnl / cost * 100) : 0;
+      holdingsValue += mktVal;
+      totalPnl += pnl;
+
+      const dirLabel = isShort ? '<span style="color:#F6465D;font-size:0.65rem;margin-left:4px;">SHORT</span>' : '';
+      const tr = document.createElement('tr');
+      tr.style.cssText = 'border-bottom: 1px solid rgba(255,255,255,0.04);';
+      tr.innerHTML =
+        '<td style="padding:0.35rem 1rem;color:#EAECEF;font-weight:600;">' + h.ticker + dirLabel + '</td>' +
+        '<td style="padding:0.35rem 0.5rem;text-align:right;color:#EAECEF;">' + h.quantity + '</td>' +
+        '<td style="padding:0.35rem 0.5rem;text-align:right;color:#929AA5;">' + fmtMoney(h.average_cost) + '</td>' +
+        '<td style="padding:0.35rem 0.5rem;text-align:right;color:#EAECEF;">' + fmtMoney(h.current_price) + '</td>' +
+        '<td style="padding:0.35rem 0.5rem;text-align:right;color:#EAECEF;">' + fmtMoney(mktVal) + '</td>' +
+        '<td style="padding:0.35rem 1rem;text-align:right;color:' + (pnl >= 0 ? '#2EBD85' : '#F6465D') + ';font-weight:600;">' +
+          (pnl >= 0 ? '+' : '') + fmtMoney(pnl) + ' (' + (pnl >= 0 ? '+' : '') + pnlPct.toFixed(2) + '%)</td>';
+      posBody.appendChild(tr);
+    });
+    posEmpty.style.display = holdings.length === 0 ? '' : 'none';
+
+    // Account stats
+    const totalVal = cash + holdingsValue;
+    document.getElementById('panel-cash').textContent = fmtMoney(cash);
+    document.getElementById('panel-holdings-val').textContent = fmtMoney(holdingsValue);
+    document.getElementById('panel-total-val').textContent = fmtMoney(totalVal);
+    const pnlEl = document.getElementById('panel-pnl');
+    pnlEl.textContent = (totalPnl >= 0 ? '+' : '') + fmtMoney(totalPnl);
+    pnlEl.style.color = totalPnl >= 0 ? '#2EBD85' : '#F6465D';
+
+    // Open Orders
+    const ordBody = document.getElementById('orders-body');
+    const ordEmpty = document.getElementById('orders-empty');
+    const orders = PENDING_ORDERS[pid] || [];
+    ordBody.innerHTML = '';
+    orders.forEach(o => {
+      const price = o.order_type === 'limit' ? o.limit_price : o.stop_price;
+      const tr = document.createElement('tr');
+      tr.style.cssText = 'border-bottom: 1px solid rgba(255,255,255,0.04);';
+      tr.innerHTML =
+        '<td style="padding:0.35rem 1rem;color:#EAECEF;font-weight:600;">' + o.ticker + '</td>' +
+        '<td style="padding:0.35rem 0.5rem;color:#929AA5;text-transform:capitalize;">' + o.order_type + '</td>' +
+        '<td style="padding:0.35rem 0.5rem;color:' + (o.action === 'buy' ? '#2EBD85' : '#F6465D') + ';font-weight:600;text-transform:uppercase;">' + o.action + '</td>' +
+        '<td style="padding:0.35rem 0.5rem;text-align:right;color:#EAECEF;">' + o.quantity + '</td>' +
+        '<td style="padding:0.35rem 0.5rem;text-align:right;color:#EAECEF;">' + (price ? fmtMoney(price) : '—') + '</td>' +
+        '<td style="padding:0.35rem 0.5rem;color:#929AA5;">' + o.created_at + '</td>' +
+        '<td style="padding:0.35rem 1rem;text-align:center;">' +
+          '<button onclick="cancelOrder(' + o.id + ', ' + pid + ')" ' +
+          'style="background:rgba(246,70,93,0.12);color:#F6465D;border:1px solid rgba(246,70,93,0.3);' +
+          'border-radius:4px;padding:0.15rem 0.6rem;font-size:0.68rem;font-weight:600;cursor:pointer;">Cancel</button></td>';
+      ordBody.appendChild(tr);
+    });
+    ordEmpty.style.display = orders.length === 0 ? '' : 'none';
+
+    // Order History
+    const histBody = document.getElementById('history-body');
+    const histEmpty = document.getElementById('history-empty');
+    const history = TRADE_HISTORY[pid] || [];
+    histBody.innerHTML = '';
+    history.forEach(t => {
+      const tr = document.createElement('tr');
+      tr.style.cssText = 'border-bottom: 1px solid rgba(255,255,255,0.04);';
+      const statusColor = t.status === 'filled' ? '#2EBD85' : '#F6465D';
+      tr.innerHTML =
+        '<td style="padding:0.35rem 1rem;color:#EAECEF;font-weight:600;">' + t.ticker + '</td>' +
+        '<td style="padding:0.35rem 0.5rem;color:#929AA5;text-transform:capitalize;">' + t.order_type + '</td>' +
+        '<td style="padding:0.35rem 0.5rem;color:' + (t.action === 'buy' ? '#2EBD85' : '#F6465D') + ';font-weight:600;text-transform:uppercase;">' + t.action + '</td>' +
+        '<td style="padding:0.35rem 0.5rem;text-align:right;color:#EAECEF;">' + t.quantity + '</td>' +
+        '<td style="padding:0.35rem 0.5rem;text-align:right;color:#EAECEF;">' + (t.price ? fmtMoney(t.price) : '—') + '</td>' +
+        '<td style="padding:0.35rem 0.5rem;color:' + statusColor + ';text-transform:capitalize;font-weight:600;">' + t.status + '</td>' +
+        '<td style="padding:0.35rem 1rem;color:#929AA5;">' + (t.executed_at || t.created_at) + '</td>';
+      histBody.appendChild(tr);
+    });
+    histEmpty.style.display = history.length === 0 ? '' : 'none';
+  }
+  // Expose so the chart IIFE can call it when price moves
+  window.renderPanel = renderPanel;
+
+  /* ── Cancel order ── */
+  window.cancelOrder = function (tradeId, portfolioId) {
+    fetch('/portfolios/' + portfolioId + '/trades/' + tradeId + '/cancel', {
+      method: 'PATCH',
+      headers: { 'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content, 'Accept': 'application/json' }
+    }).then(r => r.json()).then(() => {
+      // Remove from local data and re-render
+      const orders = PENDING_ORDERS[portfolioId];
+      if (orders) {
+        const idx = orders.findIndex(o => o.id === tradeId);
+        if (idx !== -1) orders.splice(idx, 1);
+      }
+      renderPanel();
+      renderPendingOrdersOnChart();
+    });
+  };
+
+  /* ── Order type selector ── */
+  window.selectOrderType = function (type, btn) {
+    _orderType = type;
+    document.getElementById('trade-order-type').value = type;
+    document.querySelectorAll('.order-type-btn').forEach(b => {
+      b.style.background = 'rgba(255,255,255,0.06)';
+      b.style.color = '#929AA5';
+      b.style.borderColor = 'rgba(255,255,255,0.1)';
+    });
+    btn.style.background = 'rgba(20,184,166,0.15)';
+    btn.style.color = '#14B8A6';
+    btn.style.borderColor = 'rgba(20,184,166,0.4)';
+
+    document.getElementById('trade-price-row').style.display   = type === 'market' ? '' : 'none';
+    document.getElementById('limit-price-row').style.display    = type === 'limit'  ? '' : 'none';
+    document.getElementById('stop-price-row').style.display     = type === 'stop'   ? '' : 'none';
+
+    const submitBtn = document.getElementById('trade-submit-btn');
+    if (submitBtn) {
+      if (type === 'market') {
+        submitBtn.textContent = _tradeAction === 'buy' ? 'Confirm Buy' : 'Confirm Sell';
+      } else {
+        submitBtn.textContent = 'Place ' + type.charAt(0).toUpperCase() + type.slice(1) + ' Order';
+      }
+    }
+    updateTotal();
+  };
+
+  /* ── Trade modal presets ── */
+  function renderPresets() {
+    const container = document.getElementById('trade-presets');
+    if (!container) return;
+    container.innerHTML = '';
+    const pid   = selectedPortfolioId();
+    const price = getEffectivePrice();
+    if (!pid || price <= 0) return;
+
+    [25, 50, 75, 100].forEach(pct => {
+      let qty = 0;
+      const h = PORTFOLIO_HOLDINGS[pid];
+      if (_tradeAction === 'sell' && h && h.direction === 'long') {
+        // Selling long holdings
+        qty = Math.floor(h.quantity * pct / 100);
+      } else if (_tradeAction === 'buy' && h && h.direction === 'short') {
+        // Covering short holdings
+        qty = Math.floor(h.quantity * pct / 100);
+      } else {
+        // Opening new position — based on cash
+        const cash = PORTFOLIO_CASH[pid] || 0;
+        qty = Math.floor((cash * pct / 100) / price);
+      }
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.innerHTML = '<span style="display:block;font-size:0.72rem;">' + pct + '%</span>' +
+                      '<span style="display:block;font-size:0.65rem;opacity:0.7;">' + (qty > 0 ? qty + ' sh' : '—') + '</span>';
+      btn.style.cssText = 'flex:1;padding:0.35rem 0;font-weight:700;background:rgba(255,255,255,0.06);' +
+        'border:1px solid rgba(255,255,255,0.1);border-radius:4px;color:#929AA5;cursor:pointer;transition:all 0.15s;line-height:1.3;';
+      btn.onmouseover = () => { btn.style.borderColor = '#14B8A6'; btn.style.color = '#14B8A6'; };
+      btn.onmouseout  = () => { btn.style.borderColor = 'rgba(255,255,255,0.1)'; btn.style.color = '#929AA5'; };
+      btn.onclick = () => {
+        const qtyF = document.getElementById('trade-qty-field');
+        if (qtyF && qty > 0) { qtyF.value = qty; updateTotal(); }
+      };
+      container.appendChild(btn);
+    });
+  }
+
+  function getEffectivePrice() {
+    if (_orderType === 'limit') return parseFloat(document.getElementById('trade-limit-price')?.value) || 0;
+    if (_orderType === 'stop')  return parseFloat(document.getElementById('trade-stop-price')?.value) || 0;
+    return getLivePrice();
+  }
+
+  function updateHoldingsInfo() {
+    const pid    = selectedPortfolioId();
+    const infoEl = document.getElementById('trade-holdings-info');
+    const qtyLbl = document.getElementById('holdings-qty-label');
+    const avgLbl = document.getElementById('holdings-avg-label');
+    if (!pid || !infoEl) return;
+
+    const h = PORTFOLIO_HOLDINGS[pid];
+    if (h && h.quantity > 0) {
+      if (h.direction === 'short') {
+        qtyLbl.textContent = 'Short: ' + h.quantity + ' shares';
+        avgLbl.textContent = '· Avg entry: $' + h.average_cost.toFixed(2);
+      } else {
+        qtyLbl.textContent = 'You own: ' + h.quantity + ' shares';
+        avgLbl.textContent = '· Avg buy-in: $' + h.average_cost.toFixed(2);
+      }
+      infoEl.style.display = 'block';
+    } else {
+      qtyLbl.textContent = 'No position';
+      avgLbl.textContent = '';
+      infoEl.style.display = _tradeAction === 'sell' ? 'block' : 'none';
+    }
+  }
+
+  window.updateTotal = function () {
+    const qtyF    = document.getElementById('trade-qty-field');
+    const total   = document.getElementById('trade-total');
+    const preview = document.getElementById('trade-cost-preview');
+    const price   = getEffectivePrice();
+    const q       = parseInt(qtyF?.value) || 0;
+    if (price > 0 && q > 0) {
+      total.textContent = fmtMoney(price * q);
+      preview.style.display = 'block';
+    } else {
+      preview.style.display = 'none';
+    }
+  };
+
+  function onPortfolioChange() {
+    // Sync panel selector
+    const panelSel = document.getElementById('panel-portfolio-select');
+    if (panelSel) panelSel.value = selectedPortfolioId();
+    updateHoldingsInfo();
+    renderPresets();
+    updateTotal();
+    renderPanel();
+    renderPendingOrdersOnChart();
+  }
+  window.onPortfolioChange = onPortfolioChange;
+
+  /* ── Open / close trade modal ── */
+  window.openTradeModal = function (action) {
+    _tradeAction = action;
+    _orderType = 'market';
+    const modal = document.getElementById('trade-modal');
+    const title = document.getElementById('trade-title');
+    const btn   = document.getElementById('trade-submit-btn');
+    const af    = document.getElementById('trade-action-field');
+    const priceD = document.getElementById('trade-price-display');
+    const msg   = document.getElementById('trade-msg');
+    const qtyF  = document.getElementById('trade-qty-field');
+
+    // Sync modal portfolio to panel portfolio
+    const panelPid = panelPortfolioId();
+    const modalSel = document.getElementById('trade-portfolio-select');
+    if (modalSel && panelPid) modalSel.value = panelPid;
+
+    af.value = action;
+    title.textContent = action === 'buy' ? '▲ Buy ' + STOCK_TICKER : '▼ Sell ' + STOCK_TICKER;
+    if (btn) { btn.style.background = TRADE_COLORS[action]; btn.textContent = action === 'buy' ? 'Confirm Buy' : 'Confirm Sell'; }
+    msg.style.display = 'none';
+    if (qtyF) qtyF.value = '';
+
+    // Reset order type to market
+    document.getElementById('trade-order-type').value = 'market';
+    document.querySelectorAll('.order-type-btn').forEach((b, i) => {
+      if (i === 0) { b.style.background = 'rgba(20,184,166,0.15)'; b.style.color = '#14B8A6'; b.style.borderColor = 'rgba(20,184,166,0.4)'; }
+      else { b.style.background = 'rgba(255,255,255,0.06)'; b.style.color = '#929AA5'; b.style.borderColor = 'rgba(255,255,255,0.1)'; }
+    });
+    document.getElementById('trade-price-row').style.display = '';
+    document.getElementById('limit-price-row').style.display = 'none';
+    document.getElementById('stop-price-row').style.display = 'none';
+
+    const price = getLivePrice();
+    if (priceD) priceD.textContent = price > 0 ? fmtMoney(price) : '—';
+
+    // Pre-fill limit/stop price with current price
+    const limitInput = document.getElementById('trade-limit-price');
+    const stopInput  = document.getElementById('trade-stop-price');
+    if (limitInput) limitInput.value = price > 0 ? price.toFixed(2) : '';
+    if (stopInput)  stopInput.value  = price > 0 ? price.toFixed(2) : '';
+
+    // Pre-fill TP/SL with reasonable defaults based on live price
+    const tpEl = document.getElementById('trade-take-profit');
+    const slEl = document.getElementById('trade-stop-loss');
+    if (tpEl && price > 0) tpEl.value = action === 'buy' ? (price * 1.05).toFixed(2) : (price * 0.95).toFixed(2);
+    if (slEl && price > 0) slEl.value = action === 'buy' ? (price * 0.97).toFixed(2) : (price * 1.03).toFixed(2);
+
+    updateHoldingsInfo();
+    renderPresets();
+    updateTotal();
+    modal.style.display = 'flex';
+  };
+
+  window.closeTrade = function () {
+    document.getElementById('trade-modal').style.display = 'none';
+  };
+
+  /* ── Form submission ── */
+  document.addEventListener('DOMContentLoaded', function () {
+    const sel  = document.getElementById('trade-portfolio-select');
+    const form = document.getElementById('trade-form');
+
+    function syncFormAction() {
+      if (sel && form && sel.value) form.action = '/portfolios/' + sel.value + '/trades';
+    }
+    sel?.addEventListener('change', syncFormAction);
+    syncFormAction();
+
+    form?.addEventListener('submit', function (e) {
+      e.preventDefault();
+      const portfolioId = sel?.value;
+      const msgEl = document.getElementById('trade-msg');
+
+      if (!portfolioId) {
+        msgEl.textContent = 'Please join a league first to trade.';
+        msgEl.style.background = 'rgba(246,70,93,0.12)';
+        msgEl.style.color = '#F6465D';
+        msgEl.style.display = 'block';
+        return;
+      }
+
+      const btn = document.getElementById('trade-submit-btn');
+      if (btn) { btn.disabled = true; btn.textContent = 'Placing…'; }
+      window._tradeInFlight = true;
+      // Abort any in-flight check_tp_sl request to free the Puma thread
+      if (window._autoCheckController) { window._autoCheckController.abort(); window._autoCheckController = null; window._autoCheckInFlight = false; }
+      msgEl.style.display = 'none';
+
+      // Build payload explicitly — avoids multipart CSRF-token issues
+      const tradePayload = {
+        current_price: window.getLivePrice(),
+        trade: {
+          ticker:      document.querySelector('[name="trade[ticker]"]')?.value || STOCK_TICKER,
+          action:      document.getElementById('trade-action-field')?.value,
+          quantity:    document.getElementById('trade-qty-field')?.value,
+          order_type:  document.getElementById('trade-order-type')?.value || 'market',
+          limit_price: document.getElementById('trade-limit-price')?.value || null,
+          stop_price:  document.getElementById('trade-stop-price')?.value || null,
+          take_profit: document.getElementById('trade-take-profit')?.value || null,
+          stop_loss:   document.getElementById('trade-stop-loss')?.value || null,
+        }
+      };
+
+      console.log('[Trade] Submitting:', tradePayload);
+      fetch('/portfolios/' + portfolioId + '/trades', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content,
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(tradePayload)
+      })
+      .then(r => {
+        console.log('[Trade] Response status:', r.status);
+        return r.json().catch(() => ({ error: 'Server error (HTTP ' + r.status + ')' }));
+      })
+      .then(data => {
+        console.log('[Trade] Response data:', data);
+        if (data.error) {
+          msgEl.textContent = data.error;
+          msgEl.style.background = 'rgba(246,70,93,0.12)';
+          msgEl.style.color = '#F6465D';
+          msgEl.style.display = 'block';
+          if (btn) { btn.disabled = false; btn.textContent = _tradeAction === 'buy' ? 'Confirm Buy' : 'Confirm Sell'; }
+          return;
+        }
+
+        msgEl.textContent = data.notice || 'Order placed!';
+        msgEl.style.background = 'rgba(46,189,133,0.12)';
+        msgEl.style.color = '#2EBD85';
+        msgEl.style.display = 'block';
+
+        if (data.trade) {
+          const t = data.trade;
+          // Always use string key — sel.value is string, Rails JSON integer keys are strings in JS
+          const pid = String(portfolioId);
+
+          if (t.status === 'pending') {
+            // Pending limit/stop order — add to panel and draw on chart
+            if (!PENDING_ORDERS[pid]) PENDING_ORDERS[pid] = [];
+            PENDING_ORDERS[pid].push({
+              id: t.id, ticker: t.ticker, action: t.action,
+              order_type: t.order_type, quantity: t.quantity,
+              limit_price: t.limit_price, stop_price: t.stop_price,
+              created_at: new Date().toLocaleString()
+            });
+            if (window.renderOrderOverlays) window.renderOrderOverlays();
+          } else {
+            const price = t.price_at_trade || 0;
+
+            // Update local cash from server response
+            if (data.cash_balance !== undefined) {
+              PORTFOLIO_CASH[pid] = data.cash_balance;
+            }
+
+            // Update ALL_HOLDINGS using server holding state
+            if (!ALL_HOLDINGS[pid]) ALL_HOLDINGS[pid] = [];
+            const existingIdx = ALL_HOLDINGS[pid].findIndex(h => h.ticker === t.ticker);
+            if (data.holding) {
+              // Server says holding exists — update or add
+              const newH = {
+                ticker: t.ticker, quantity: data.holding.quantity,
+                average_cost: data.holding.average_cost, current_price: price,
+                company: '', stock_id: null, direction: data.holding.direction
+              };
+              if (existingIdx >= 0) {
+                Object.assign(ALL_HOLDINGS[pid][existingIdx], newH);
+              } else {
+                ALL_HOLDINGS[pid].push(newH);
+              }
+            } else {
+              // No holding — position fully closed
+              if (existingIdx >= 0) ALL_HOLDINGS[pid].splice(existingIdx, 1);
+            }
+
+            // Update PORTFOLIO_HOLDINGS (used by presets)
+            if (data.holding && t.ticker === STOCK_TICKER) {
+              PORTFOLIO_HOLDINGS[pid] = {
+                quantity: data.holding.quantity,
+                average_cost: data.holding.average_cost,
+                direction: data.holding.direction
+              };
+            } else if (t.ticker === STOCK_TICKER) {
+              delete PORTFOLIO_HOLDINGS[pid];
+            }
+
+            // Add to trade history
+            if (!TRADE_HISTORY[pid]) TRADE_HISTORY[pid] = [];
+            TRADE_HISTORY[pid].unshift({
+              id: t.id, ticker: t.ticker, action: t.action,
+              order_type: t.order_type, quantity: t.quantity,
+              price: t.price_at_trade, status: t.status,
+              take_profit: t.take_profit, stop_loss: t.stop_loss,
+              executed_at: t.executed_at, created_at: new Date().toLocaleString()
+            });
+
+            // Draw position lines AFTER holdings + history are updated
+            if (window.drawPositionLines) window.drawPositionLines();
+          }
+          renderPanel();
+        }
+
+        setTimeout(closeTrade, 1500);
+      })
+      .catch((err) => {
+        console.error('[Trade] Fetch error:', err);
+        msgEl.textContent = 'Network error. Please try again.';
+        msgEl.style.background = 'rgba(246,70,93,0.12)';
+        msgEl.style.color = '#F6465D';
+        msgEl.style.display = 'block';
+      })
+      .finally(() => {
+        window._tradeInFlight = false;
+        if (btn) { btn.disabled = false; btn.textContent = _tradeAction === 'buy' ? 'Confirm Buy' : 'Confirm Sell'; }
+      });
+    });
+
+    // Initial panel render
+    renderPanel();
+  });
+})();
+</script>
+
+<%# ══════════════════════════════════════════════════════════════ %>
+<%# ── KLineChart ── %>
+<%# ══════════════════════════════════════════════════════════════ %>
+<script src="https://unpkg.com/klinecharts@9.8.7/dist/umd/klinecharts.min.js"></script>
+
+<script>
+(function () {
+  /* ════════════════════════════════════════════════════════════════
+     State
+  ════════════════════════════════════════════════════════════════ */
+  const livePriceEl = document.getElementById('live-price');
+  const priceChgEl  = document.getElementById('price-change');
+  let chart         = null;
+  let _firstClose   = null;
+  let _currentInterval = 1; // minutes
+
+  // GBM state
+  let _gbmTimer    = null;
+  let _gbmMu       = 0;
+  let _gbmSigma    = 0.012;
+  let _liveCandle  = null;   // candle currently being built
+  const SUB_TICK_MS = 500;   // price tick every 500ms (slower to reduce SQLite write contention)
+
+  // Drawing overlay stack (for undo)
+  const _overlayStack = [];
+  // Pending order overlays
+  const _orderOverlays = [];
+  // Active filled-trade overlay groups { entryId, tpId, slId, tradeId, portfolioId }
+  const _tradeLines = [];
+
+  // Cursor price tracking (for right-click menu)
+  let _cursorPrice = null;
+
+  window.chart = null;
+
+  /* ════════════════════════════════════════════════════════════════
+     Helpers
+  ════════════════════════════════════════════════════════════════ */
+  function randn() {
+    // Box-Muller transform
+    let u, v;
+    do { u = Math.random(); } while (u === 0);
+    do { v = Math.random(); } while (v === 0);
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+
+  function calibrateGBM(data) {
+    if (data.length < 5) return;
+    const returns = [];
+    for (let i = 1; i < data.length; i++) {
+      if (data[i - 1].close > 0)
+        returns.push(Math.log(data[i].close / data[i - 1].close));
+    }
+    const n    = returns.length;
+    const mean = returns.reduce((a, b) => a + b, 0) / n;
+    const variance = returns.reduce((a, b) => a + (b - mean) ** 2, 0) / Math.max(n - 1, 1);
+    _gbmMu    = mean;
+    _gbmSigma = Math.max(Math.sqrt(variance), 0.003); // floor at 0.3% per candle
+  }
+
+  function updatePriceDisplay(close) {
+    if (!livePriceEl) return;
+    livePriceEl.textContent = '$' + close.toFixed(2);
+    if (priceChgEl && _firstClose) {
+      const chg    = close - _firstClose;
+      const chgPct = (chg / _firstClose) * 100;
+      const sign   = chg >= 0 ? '+' : '';
+      priceChgEl.textContent = `${sign}${chg.toFixed(2)} (${sign}${chgPct.toFixed(2)}%)`;
+      priceChgEl.style.color = chg >= 0 ? '#2EBD85' : '#F6465D';
+    }
+  }
+
+  /* ════════════════════════════════════════════════════════════════
+     GBM continuous price engine
+     Runs indefinitely — no pause, no stop, no replay
+  ════════════════════════════════════════════════════════════════ */
+  // Shared across IIFEs via window — used by trade form (IIFE 1) and TP/SL checker (IIFE 2)
+  window._autoCheckInFlight = window._autoCheckInFlight || false;
+  window._autoCheckController = window._autoCheckController || null;
+  window._tradeInFlight = window._tradeInFlight || false;
+
+  function checkAutoTpSl(currentPrice) {
+    if (window._autoCheckInFlight || window._tradeInFlight) return;
+
+    const pid = document.getElementById('panel-portfolio-select')?.value ||
+                document.getElementById('trade-portfolio-select')?.value;
+    if (!pid) return;
+
+    // ── Client-side quick-check: is there anything to trigger? ──
+    let needsTpSlCheck = false;
+    let needsPendingCheck = false;
+
+    // Check TP/SL
+    const arr = ALL_HOLDINGS[pid] || [];
+    const pos = arr.find(h => h.ticker === STOCK_TICKER);
+    if (pos && pos.quantity > 0) {
+      const history = TRADE_HISTORY[pid];
+      if (Array.isArray(history)) {
+        for (const t of history) {
+          if (t.ticker === STOCK_TICKER && t.status === 'filled') {
+            const tp = t.take_profit ? Number(t.take_profit) : null;
+            const sl = t.stop_loss   ? Number(t.stop_loss)   : null;
+            if (!tp && !sl) break;
+            const isLong = pos.direction !== 'short';
+            if (isLong) {
+              if ((tp && currentPrice >= tp) || (sl && currentPrice <= sl)) needsTpSlCheck = true;
+            } else {
+              if ((tp && currentPrice <= tp) || (sl && currentPrice >= sl)) needsTpSlCheck = true;
+            }
+            break;
+          }
+        }
+      }
+    }
+
+    // Check pending orders
+    const orders = PENDING_ORDERS[pid] || [];
+    for (const o of orders) {
+      if (o.ticker !== STOCK_TICKER) continue;
+      if (o.order_type === 'limit') {
+        if (o.action === 'buy' && currentPrice <= o.limit_price) needsPendingCheck = true;
+        if (o.action === 'sell' && currentPrice >= o.limit_price) needsPendingCheck = true;
+      } else if (o.order_type === 'stop') {
+        if (o.action === 'buy' && currentPrice >= o.stop_price) needsPendingCheck = true;
+        if (o.action === 'sell' && currentPrice <= o.stop_price) needsPendingCheck = true;
+      }
+      if (needsPendingCheck) break;
+    }
+
+    if (!needsTpSlCheck && !needsPendingCheck) return;
+
+    // ── Server call to execute ──
+    window._autoCheckInFlight = true;
+    window._autoCheckController = new AbortController();
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+
+    fetch('/portfolios/' + pid + '/trades/check_tp_sl', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken, 'Accept': 'application/json' },
+      body: JSON.stringify({ ticker: STOCK_TICKER, current_price: currentPrice }),
+      signal: window._autoCheckController.signal
+    })
+    .then(r => {
+      if (!r.ok) { console.warn('check_tp_sl failed:', r.status); return { triggered: [], filled_orders: [] }; }
+      return r.json();
+    })
+    .then(data => {
+      window._autoCheckInFlight = false;
+
+      // Update cash + holding from server
+      if (data.cash_balance !== undefined) PORTFOLIO_CASH[pid] = data.cash_balance;
+      if (!ALL_HOLDINGS[pid]) ALL_HOLDINGS[pid] = [];
+      const hArr = ALL_HOLDINGS[pid];
+      const existIdx = hArr.findIndex(h => h.ticker === STOCK_TICKER);
+      if (data.holding) {
+        const upd = { ticker: STOCK_TICKER, quantity: data.holding.quantity,
+                      average_cost: data.holding.average_cost, direction: data.holding.direction,
+                      current_price: currentPrice, company: '', stock_id: null };
+        if (existIdx >= 0) Object.assign(hArr[existIdx], upd);
+        else hArr.push(upd);
+        PORTFOLIO_HOLDINGS[pid] = { quantity: data.holding.quantity, average_cost: data.holding.average_cost, direction: data.holding.direction };
+      } else {
+        if (existIdx >= 0) hArr.splice(existIdx, 1);
+        delete PORTFOLIO_HOLDINGS[pid];
+      }
+
+      // Process TP/SL triggers
+      if (data.triggered && data.triggered.length > 0) {
+        data.triggered.forEach(t => {
+          if (!TRADE_HISTORY[pid]) TRADE_HISTORY[pid] = [];
+          TRADE_HISTORY[pid].unshift({
+            id: t.id, ticker: t.ticker, action: t.action,
+            order_type: t.order_type, quantity: t.quantity,
+            price: t.price_at_trade, status: t.status,
+            take_profit: null, stop_loss: null,
+            executed_at: t.executed_at, created_at: new Date().toLocaleString()
+          });
+          const reason = needsTpSlCheck ? (pos && pos.direction !== 'short'
+            ? (t.action === 'sell' ? 'TP/SL' : 'TP/SL')
+            : 'TP/SL') : 'Order';
+          showAutoNotification('Position closed — ' + t.action.toUpperCase() + ' ' + t.quantity + ' ' + STOCK_TICKER + ' @ $' + Number(t.price_at_trade).toFixed(2),
+            t.action === 'sell' ? '#F6465D' : '#2EBD85');
+        });
+      }
+
+      // Process filled pending orders
+      if (data.filled_orders && data.filled_orders.length > 0) {
+        data.filled_orders.forEach(t => {
+          // Remove from PENDING_ORDERS
+          const pOrders = PENDING_ORDERS[pid];
+          if (pOrders) {
+            const idx = pOrders.findIndex(o => o.id === t.id);
+            if (idx >= 0) pOrders.splice(idx, 1);
+          }
+          // Add to history
+          if (!TRADE_HISTORY[pid]) TRADE_HISTORY[pid] = [];
+          TRADE_HISTORY[pid].unshift({
+            id: t.id, ticker: t.ticker, action: t.action,
+            order_type: t.order_type, quantity: t.quantity,
+            price: t.price_at_trade, status: 'filled',
+            take_profit: t.take_profit, stop_loss: t.stop_loss,
+            executed_at: t.executed_at, created_at: new Date().toLocaleString()
+          });
+          showAutoNotification(t.order_type.toUpperCase() + ' ' + t.action.toUpperCase() + ' filled — ' +
+            t.quantity + ' ' + STOCK_TICKER + ' @ $' + Number(t.price_at_trade).toFixed(2), '#5B9CF6');
+        });
+        if (window.renderOrderOverlays) window.renderOrderOverlays();
+      }
+
+      if (window.drawPositionLines) window.drawPositionLines();
+      if (window.renderPanel) window.renderPanel();
+    })
+    .catch(() => { window._autoCheckInFlight = false; });
+  }
+
+  function showAutoNotification(msg, color) {
+    const el = document.createElement('div');
+    el.textContent = msg;
+    el.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:9999;' +
+      'background:' + color + '22;border:1px solid ' + color + ';color:' + color + ';' +
+      'padding:0.6rem 1.5rem;border-radius:6px;font-size:0.85rem;font-weight:600;pointer-events:none;';
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 4000);
+  }
+
+  function stopGBM() {
+    if (_gbmTimer) { clearInterval(_gbmTimer); _gbmTimer = null; }
+  }
+
+  function startGBM(seedCandle) {
+    stopGBM();
+    const displayIntervalMs = _currentInterval * 60 * 1000;
+    // GBM always runs at 1-minute granularity for consistency across timeframes
+    const oneMinMs           = 60 * 1000;
+    const ticksPerOneMin     = Math.round(oneMinMs / SUB_TICK_MS);
+    const subCandlesPerBar   = _currentInterval; // e.g. 5 for 5m, 15 for 15m
+    let   _tick              = 0;
+    let   _subCandleCount    = 0; // how many 1-min sub-candles completed in current display bar
+    // Timestamps continue directly after the last historical candle — no gap
+    let   _nextTs            = seedCandle.timestamp + displayIntervalMs;
+
+    _liveCandle = {
+      timestamp: _nextTs,
+      open:   seedCandle.close,
+      high:   seedCandle.close,
+      low:    seedCandle.close,
+      close:  seedCandle.close,
+      volume: 0
+    };
+
+    _gbmTimer = setInterval(() => {
+      if (!chart || !_liveCandle) return;
+
+      _tick++;
+      if (_tick >= ticksPerOneMin) {
+        // One 1-minute sub-candle complete
+        _tick = 0;
+        _subCandleCount++;
+
+        if (_subCandleCount >= subCandlesPerBar) {
+          // Display bar complete — open the next one
+          _subCandleCount = 0;
+          _nextTs += displayIntervalMs;
+          _liveCandle = {
+            timestamp: _nextTs,
+            open:   _liveCandle.close,
+            high:   _liveCandle.close,
+            low:    _liveCandle.close,
+            close:  _liveCandle.close,
+            volume: 0
+          };
+        }
+      }
+
+      // GBM step — always at 1-minute scale so prices match across timeframes
+      const dt       = 1 / ticksPerOneMin;
+      const z        = randn();
+      const newClose = _liveCandle.close *
+        Math.exp((_gbmMu - 0.5 * _gbmSigma * _gbmSigma) * dt +
+                  _gbmSigma * Math.sqrt(dt) * z);
+
+      _liveCandle.close  = newClose;
+      _liveCandle.high   = Math.max(_liveCandle.high,  newClose);
+      _liveCandle.low    = Math.min(_liveCandle.low,   newClose);
+      _liveCandle.volume += (Math.abs(z) * 800 + 200) * dt;
+
+      chart.updateData({ ..._liveCandle });
+      updatePriceDisplay(_liveCandle.close);
+      _cursorPrice = _liveCandle.close;
+
+      // Keep price range current for right-click estimation
+      if (_chartPriceMin === null || _liveCandle.low < _chartPriceMin)  _chartPriceMin = _liveCandle.low;
+      if (_chartPriceMax === null || _liveCandle.high > _chartPriceMax) _chartPriceMax = _liveCandle.high;
+
+      // Update current_price in ALL_HOLDINGS so P&L stays live
+      const liveP = _liveCandle.close;
+      Object.keys(ALL_HOLDINGS).forEach(pid => {
+        const arr = ALL_HOLDINGS[pid];
+        if (!Array.isArray(arr)) return;
+        arr.forEach(h => { if (h.ticker === STOCK_TICKER) h.current_price = liveP; });
+      });
+      // Reposition order buttons every tick (cheap DOM op)
+      repositionOrderButtons();
+
+      // Re-render panel + position line P&L labels every ~3 seconds
+      if (typeof window.renderPanel === 'function' && (_tick % 6 === 0)) {
+        window.renderPanel();
+        updatePositionLabels(); // update P&L text in-place, no recreate
+      }
+
+      // Check TP/SL and pending order auto-execution every ~1 second
+      if (_tick % 2 === 0) checkAutoTpSl(liveP);
+    }, SUB_TICK_MS);
+  }
+
+  /* ════════════════════════════════════════════════════════════════
+     Data loading
+  ════════════════════════════════════════════════════════════════ */
+  async function loadData(intervalMinutes) {
+    stopGBM();
+    _currentInterval = parseInt(intervalMinutes, 10);
+
+    const resp = await fetch('/stocks/' + STOCK_ID + '/ohlcv?interval=' + _currentInterval);
+    const raw  = await resp.json();
+    const data = raw.map(d => ({
+      timestamp: d.timestamp * 1000,
+      open:  d.open, high: d.high, low: d.low, close: d.close, volume: d.volume
+    }));
+
+    if (!chart || data.length === 0) return;
+
+    // Show all data as history; use last 100 candles for GBM calibration
+    const historical = data;
+    const recent     = data.slice(Math.max(0, data.length - 100));
+
+    _firstClose = historical[historical.length - 1].close;
+    _cursorPrice = historical[historical.length - 1].close;
+    updatePriceDisplay(_cursorPrice);
+
+    // Remove ALL chart overlays before loading new data to prevent stale renders.
+    _overlayStack.forEach(id => { try { chart.removeOverlay(id); } catch (_) {} });
+    _overlayStack.length = 0;
+    _orderOverlays.forEach(id => { try { chart.removeOverlay(id); } catch (_) {} });
+    _orderOverlays.length = 0;
+    _tradeLines.forEach(g => {
+      [g.entryId, g.tpId, g.slId].forEach(id => { if (id) try { chart.removeOverlay(id); } catch (_) {} });
+    });
+    _tradeLines.length = 0;
+    _drawingOverlayId = null;
+    _selectedOverlayId = null;
+
+    chart.applyNewData(historical);
+
+    // Load saved drawings from localStorage on first load
+    if (_drawingStore.length === 0) _loadDrawings();
+    restoreDrawings();
+    updatePriceRange(historical);
+    renderOrderOverlays();
+    drawPositionLines();
+    setTimeout(repositionOrderButtons, 100); // after chart renders
+
+    calibrateGBM(recent);
+    startGBM(historical[historical.length - 1]);
+  }
+
+  window.switchTimeframe = function (btn) {
+    document.querySelectorAll('[data-timeframe]').forEach(b => {
+      b.style.background = 'transparent';
+      b.style.color      = '#929AA5';
+      b.style.border     = '1px solid transparent';
+    });
+    btn.style.background = 'rgba(20,184,166,0.15)';
+    btn.style.color      = '#14B8A6';
+    btn.style.border     = '1px solid rgba(20,184,166,0.4)';
+    loadData(btn.dataset.interval);
+  };
+
+  /* ════════════════════════════════════════════════════════════════
+     Drawing tools + Undo + Select & Delete
+  ════════════════════════════════════════════════════════════════ */
+  let _selectedOverlayId = null;
+  let _drawingOverlayId  = null;
+
+  // Authoritative store: {id, name, points:[{timestamp,value}]}
+  const _drawingStore = [];
+  const _drawingStorageKey = 'chart_drawings_' + STOCK_ID;
+
+  function _saveDrawings() {
+    const data = _drawingStore.map(d => ({ name: d.name, points: d.points }));
+    try { localStorage.setItem(_drawingStorageKey, JSON.stringify(data)); } catch (_) {}
+  }
+
+  function _loadDrawings() {
+    try {
+      const raw = localStorage.getItem(_drawingStorageKey);
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      if (!Array.isArray(data)) return;
+      _drawingStore.length = 0;
+      data.forEach(d => {
+        if (d.name && Array.isArray(d.points)) {
+          _drawingStore.push({ id: null, name: d.name, points: d.points });
+        }
+      });
+    } catch (_) {}
+  }
+
+  function resetToolbar() {
+    document.querySelectorAll('#drawing-toolbar button[id^="draw-btn-"]').forEach(b => {
+      b.style.background  = 'rgba(255,255,255,0.05)';
+      b.style.borderColor = 'rgba(255,255,255,0.1)';
+      b.style.color       = '#929AA5';
+    });
+  }
+
+  function removeFromStore(overlayId) {
+    const idx = _drawingStore.findIndex(d => d.id === overlayId);
+    if (idx !== -1) _drawingStore.splice(idx, 1);
+  }
+
+  function cancelDrawing() {
+    if (_drawingOverlayId && chart) {
+      try { chart.removeOverlay(_drawingOverlayId); } catch (_) {}
+      const idx = _overlayStack.indexOf(_drawingOverlayId);
+      if (idx !== -1) _overlayStack.splice(idx, 1);
+      removeFromStore(_drawingOverlayId);
+      _drawingOverlayId = null;
+      _saveDrawings();
+    }
+    resetToolbar();
+  }
+
+  function resolvePoints(overlayPoints) {
+    const dataList = chart ? chart.getDataList() : [];
+    return overlayPoints.map(p => {
+      let ts = p.timestamp;
+      if (p.dataIndex != null && dataList[p.dataIndex]) {
+        // Point within data range — use exact timestamp
+        ts = dataList[p.dataIndex].timestamp;
+      } else if (p.dataIndex != null && dataList.length > 0) {
+        // Point beyond data range (on a GBM candle) — estimate timestamp
+        const last = dataList[dataList.length - 1];
+        const intervalMs = _currentInterval * 60 * 1000;
+        ts = last.timestamp + (p.dataIndex - (dataList.length - 1)) * intervalMs;
+      }
+      return { timestamp: ts, value: p.value };
+    });
+  }
+
+  function overlayCallbacks(overlayName) {
+    return {
+      onDrawEnd: (event) => {
+        const o = event.overlay;
+        const points = resolvePoints(o.points);
+        const existing = _drawingStore.find(d => d.id === o.id);
+        if (existing) {
+          existing.points = points;
+        } else {
+          _drawingStore.push({ id: o.id, name: overlayName, points: points });
+        }
+        _drawingOverlayId = null;
+        resetToolbar();
+        _saveDrawings();
+      },
+      onPressedMoveEnd: (event) => {
+        const o = event.overlay;
+        const existing = _drawingStore.find(d => d.id === o.id);
+        if (existing) { existing.points = resolvePoints(o.points); _saveDrawings(); }
+      },
+      onSelected: (event) => { _selectedOverlayId = event.overlay.id; },
+      onDeselected: () => { _selectedOverlayId = null; }
+    };
+  }
+
+  window.setDrawing = function (type, btn) {
+    cancelDrawing();
+    if (!chart) return;
+    if (!type) return;
+
+    const id = chart.createOverlay(Object.assign({ name: type }, overlayCallbacks(type)));
+    if (id) {
+      _overlayStack.push(id);
+      _drawingOverlayId = id;
+    }
+    if (btn) {
+      btn.style.background  = 'rgba(20,184,166,0.15)';
+      btn.style.borderColor = 'rgba(20,184,166,0.4)';
+      btn.style.color       = '#14B8A6';
+    }
+  };
+
+  window.clearAllDrawings = function () {
+    if (!chart) return;
+    _overlayStack.forEach(id => { try { chart.removeOverlay(id); } catch (_) {} });
+    _overlayStack.length = 0;
+    _drawingStore.length = 0;
+    _drawingOverlayId = null;
+    _selectedOverlayId = null;
+    resetToolbar();
+    _saveDrawings();
+  };
+
+  function restoreDrawings() {
+    if (!chart || _drawingStore.length === 0) return;
+    const toRestore = _drawingStore.map(d => ({ name: d.name, points: d.points.map(p => ({ ...p })) }));
+    _drawingStore.length = 0;
+    _overlayStack.length = 0;
+    toRestore.forEach(s => {
+      const overlayPoints = s.points.map(p => ({ timestamp: p.timestamp, value: p.value }));
+      const id = chart.createOverlay(Object.assign(
+        { name: s.name, points: overlayPoints },
+        overlayCallbacks(s.name)
+      ));
+      if (id) {
+        _overlayStack.push(id);
+        _drawingStore.push({ id: id, name: s.name, points: s.points });
+      }
+    });
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+
+    // Escape — cancel current drawing and return to cursor
+    if (e.key === 'Escape') {
+      cancelDrawing();
+      _selectedOverlayId = null;
+      return;
+    }
+
+    // Ctrl/Cmd+Z — undo last drawing
+    if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+      e.preventDefault();
+      if (!chart || _overlayStack.length === 0) return;
+      const removed = _overlayStack.pop();
+      try { chart.removeOverlay(removed); } catch (_) {}
+      removeFromStore(removed);
+      if (_selectedOverlayId === removed) _selectedOverlayId = null;
+      if (_drawingOverlayId === removed) _drawingOverlayId = null;
+      _saveDrawings();
+    }
+
+    // Backspace or Delete — remove selected drawing
+    if (e.key === 'Backspace' || e.key === 'Delete') {
+      if (!_selectedOverlayId || !chart) return;
+      e.preventDefault();
+      try { chart.removeOverlay(_selectedOverlayId); } catch (_) {}
+      removeFromStore(_selectedOverlayId);
+      const idx = _overlayStack.indexOf(_selectedOverlayId);
+      if (idx !== -1) _overlayStack.splice(idx, 1);
+      _selectedOverlayId = null;
+      _saveDrawings();
+    }
+  });
+
+  /* ════════════════════════════════════════════════════════════════
+     Order overlays — pending limit/stop orders
+  ════════════════════════════════════════════════════════════════ */
+  window.renderOrderOverlays = function () {
+    if (!chart) return;
+    _orderOverlays.forEach(id => { try { chart.removeOverlay(id); } catch (_) {} });
+    _orderOverlays.length = 0;
+    clearOrderButtons('pending-');
+
+    const pid = document.getElementById('panel-portfolio-select')?.value ||
+                document.getElementById('trade-portfolio-select')?.value;
+    if (!pid || !PENDING_ORDERS[pid]) return;
+
+    PENDING_ORDERS[pid].forEach(order => {
+      if (order.ticker !== STOCK_TICKER) return;
+      const price = order.order_type === 'limit' ? order.limit_price : order.stop_price;
+      if (!price) return;
+      const color = order.action === 'buy' ? '#2EBD85' : '#F6465D';
+      const typeLabel = order.order_type.toUpperCase();
+      const actionLabel = order.action.toUpperCase();
+      const label = `${typeLabel} ${actionLabel}  ${order.quantity} @ $${price.toFixed(2)}`;
+      const id = chart.createOverlay({
+        name: 'priceLine', lock: true, extendData: label,
+        styles: {
+          line: { color, size: 1, style: 'dashed', dashedValue: [6, 3] },
+          text: { color: '#fff', size: 10, backgroundColor: color,
+                  paddingLeft: 4, paddingRight: 4, paddingTop: 2, paddingBottom: 2, borderRadius: 2 }
+        },
+        points: [{ value: price }, { value: price }]
+      });
+      if (id) _orderOverlays.push(id);
+
+      // Add cancel button
+      addOrderButton('pending-' + order.id, price, color,
+        `${typeLabel} ${actionLabel}  ${order.quantity}`, '×',
+        () => { window.cancelOrder(order.id, pid); });
+    });
+  };
+  window.renderPendingOrdersOnChart = window.renderOrderOverlays;
+
+  /* ════════════════════════════════════════════════════════════════
+     Trade order lines — entry + draggable TP/SL
+  ════════════════════════════════════════════════════════════════ */
+  async function patchTradeTPSL(tradeId, portfolioId, tp, sl) {
+    const body = { trade: {} };
+    if (tp !== null && tp !== undefined) body.trade.take_profit = tp > 0 ? tp.toFixed(4) : null;
+    if (sl !== null && sl !== undefined) body.trade.stop_loss   = sl > 0 ? sl.toFixed(4) : null;
+    await fetch(`/portfolios/${portfolioId}/trades/${tradeId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content,
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+
+    // Update client-side trade history so drawPositionLines uses fresh data
+    const history = TRADE_HISTORY[portfolioId];
+    if (Array.isArray(history)) {
+      const t = history.find(h => h.id === tradeId);
+      if (t) {
+        if (tp !== null && tp !== undefined) t.take_profit = tp > 0 ? tp : null;
+        if (sl !== null && sl !== undefined) t.stop_loss   = sl > 0 ? sl : null;
+      }
+    }
+  }
+
+  /* ── Floating order buttons (TradingView-style close/cancel) ── */
+  const _orderBtnMap = {};
+
+  function clearOrderButtons(prefix) {
+    const container = document.getElementById('chart-order-buttons');
+    if (!container) return;
+    Object.keys(_orderBtnMap).forEach(k => {
+      if (k.startsWith(prefix)) {
+        _orderBtnMap[k].remove();
+        delete _orderBtnMap[k];
+      }
+    });
+  }
+
+  function addOrderButton(key, price, color, label, btnText, onClick, opts) {
+    const container = document.getElementById('chart-order-buttons');
+    if (!container) return;
+    if (_orderBtnMap[key]) { _orderBtnMap[key].remove(); delete _orderBtnMap[key]; }
+
+    const passThrough = opts?.passThrough || false;
+    const el = document.createElement('div');
+    el.dataset.price = price;
+    el.style.cssText = 'position:absolute;right:0;display:flex;align-items:center;gap:4px;transform:translateY(-50%);' +
+      'pointer-events:' + (passThrough ? 'none' : 'auto') + ';';
+    el.innerHTML =
+      '<span style="font-size:0.7rem;color:#fff;background:' + color + ';padding:2px 6px;border-radius:3px;white-space:nowrap;font-weight:600;pointer-events:none;">' +
+        label +
+      '</span>' +
+      '<button style="background:' + color + '33;border:1px solid ' + color + ';color:' + color + ';' +
+        'width:18px;height:18px;border-radius:3px;font-size:0.75rem;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;line-height:1;font-weight:700;' +
+        'pointer-events:auto;">' +
+        btnText + '</button>';
+    el.querySelector('button').onclick = onClick;
+
+    container.appendChild(el);
+    _orderBtnMap[key] = el;
+  }
+
+  function repositionOrderButtons() {
+    const container = document.getElementById('chart-order-buttons');
+    const chartEl   = document.getElementById('chart-container');
+    if (!container || !chartEl || !chart) return;
+
+    const cRect = chartEl.getBoundingClientRect();
+    const bRect = container.getBoundingClientRect();
+    const minY  = 10;                          // top margin
+    const maxY  = cRect.height - 30;           // bottom margin (above x-axis)
+
+    Object.keys(_orderBtnMap).forEach(k => {
+      const el = _orderBtnMap[k];
+      const priceVal = parseFloat(el.dataset.price);
+      if (isNaN(priceVal)) return;
+      try {
+        const coord = chart.convertToPixel({ value: priceVal }, { paneId: 'candle_pane' });
+        if (coord && coord.y !== undefined) {
+          // Clamp to visible chart area so buttons are always accessible
+          const clampedY = Math.max(minY, Math.min(maxY, coord.y));
+          el.style.top = (clampedY + cRect.top - bRect.top) + 'px';
+          el.style.display = 'flex';
+          // Show arrow indicator when price is off-screen
+          const arrow = el.querySelector('.offscreen-arrow');
+          if (coord.y < minY) {
+            if (!arrow) el.insertAdjacentHTML('afterbegin', '<span class="offscreen-arrow" style="font-size:0.6rem;color:#fff;margin-right:2px;">▲</span>');
+            else arrow.textContent = '▲';
+          } else if (coord.y > maxY) {
+            if (!arrow) el.insertAdjacentHTML('afterbegin', '<span class="offscreen-arrow" style="font-size:0.6rem;color:#fff;margin-right:2px;">▼</span>');
+            else arrow.textContent = '▼';
+          } else if (arrow) {
+            arrow.remove();
+          }
+        }
+      } catch (_) {
+        el.style.display = 'none';
+      }
+    });
+  }
+
+  // Create a price line overlay. priceLine needs 2 points (totalStep:2).
+  function makePriceLine(price, color, label, opts) {
+    const draggable = opts?.draggable || false;
+    const lineStyle = opts?.style || 'solid';
+    const lineSize  = opts?.size || 1.5;
+    const config = {
+      name: 'priceLine',
+      lock: !draggable,
+      extendData: label,
+      styles: {
+        line: { color, size: lineSize, style: lineStyle, dashedValue: [6, 3] },
+        text: { color: '#fff', size: 11, backgroundColor: color,
+                paddingLeft: 6, paddingRight: 6, paddingTop: 3, paddingBottom: 3, borderRadius: 3 },
+        point: { radius: 0, borderSize: 0, activeRadius: 0, activeBorderSize: 0 }
+      },
+      points: [{ value: Number(price) }, { value: Number(price) }]
+    };
+    if (draggable) {
+      // Lock horizontal: strip timestamp/dataIndex so line always spans full width
+      config.onPressedMoving = (event) => {
+        event.overlay.points.forEach(p => { delete p.timestamp; delete p.dataIndex; });
+        const newVal = event.overlay.points[0].value;
+        if (opts?.onDragMove) opts.onDragMove(newVal, event.overlay);
+      };
+    }
+    if (opts?.onDragEnd) {
+      config.onPressedMoveEnd = (event) => {
+        event.overlay.points.forEach(p => { delete p.timestamp; delete p.dataIndex; });
+        const newVal = event.overlay.points[0].value;
+        opts.onDragEnd(newVal);
+      };
+    }
+    if (opts?.onRightClick) {
+      config.onRightClick = (event) => {
+        opts.onRightClick(event);
+        return true; // prevent default context menu
+      };
+    }
+    return chart.createOverlay(config);
+  }
+
+  // Render position-level lines: average entry + TP/SL with P&L labels and close buttons.
+  // Only called when the position structurally changes (new trade, close, TP/SL set/removed).
+  // NOT called from GBM tick — use updatePositionLabels() for live P&L updates.
+  window.drawPositionLines = function () {
+    if (!chart) return;
+
+    // Remove old position lines
+    _tradeLines.forEach(g => {
+      [g.entryId, g.tpId, g.slId].forEach(id => {
+        if (id) try { chart.removeOverlay(id); } catch (_) {}
+      });
+    });
+    _tradeLines.length = 0;
+    clearOrderButtons('pos-');
+
+    const pid = document.getElementById('panel-portfolio-select')?.value ||
+                document.getElementById('trade-portfolio-select')?.value;
+    if (!pid) return;
+
+    const holdings = ALL_HOLDINGS[pid];
+    if (!Array.isArray(holdings)) return;
+    const pos = holdings.find(h => h.ticker === STOCK_TICKER);
+    if (!pos || pos.quantity <= 0) return;
+
+    const isShort  = pos.direction === 'short';
+    const avgEntry = pos.average_cost;
+    const curPrice = pos.current_price || _cursorPrice || avgEntry;
+    const qty      = pos.quantity;
+    const entryPnl = isShort ? (avgEntry - curPrice) * qty : (curPrice - avgEntry) * qty;
+    const pnlSign  = entryPnl >= 0 ? '+' : '';
+
+    const group = { entryId: null, tpId: null, slId: null, tradeId: null, portfolioId: pid,
+                    isShort, avgEntry, qty };
+
+    // ── Entry line ──
+    const entryColor = isShort ? '#F0B90B' : '#5B9CF6';
+    const dirTag     = isShort ? 'SHORT' : 'LONG';
+    const entryLabel = `${dirTag}  ${qty.toFixed(0)} × $${avgEntry.toFixed(2)}  ${pnlSign}$${Math.abs(entryPnl).toFixed(2)}`;
+    group.entryId = makePriceLine(avgEntry, entryColor, entryLabel,
+      { style: 'solid', size: 1.5 });
+    group.entryColor = entryColor;
+
+    addOrderButton('pos-entry', avgEntry, entryColor,
+      `${qty.toFixed(0)}  ${pnlSign}${Math.abs(entryPnl).toFixed(2)} USD`, '×',
+      () => { closePosition(pid, pos); });
+
+    // ── Find latest filled trade for TP/SL ──
+    const history = TRADE_HISTORY[pid];
+    let latestTP = null, latestSL = null, latestTradeId = null;
+    if (Array.isArray(history)) {
+      for (const t of history) {
+        if (t.ticker === STOCK_TICKER && t.status === 'filled') {
+          latestTradeId = t.id;
+          if (t.take_profit) latestTP = Number(t.take_profit);
+          if (t.stop_loss)   latestSL = Number(t.stop_loss);
+          break;
+        }
+      }
+    }
+    group.tradeId = latestTradeId;
+    group.tp = latestTP;
+    group.sl = latestSL;
+
+    // Helper: build TP/SL button label
+    function tpSlBtnText(tag, price, pnl) {
+      const s = pnl >= 0 ? '+' : '';
+      return `${tag}  $${price.toFixed(2)}  (${s}$${Math.abs(pnl).toFixed(2)})`;
+    }
+
+    // ── Take Profit line — green, draggable ──
+    if (latestTP && latestTP > 0) {
+      const tpPnl = isShort ? (avgEntry - latestTP) * qty : (latestTP - avgEntry) * qty;
+      group.tpId = makePriceLine(latestTP, '#2EBD85', '',
+        { style: 'solid', size: 2, draggable: true,
+          onDragMove: (newVal) => {
+            const pnl = isShort ? (avgEntry - newVal) * qty : (newVal - avgEntry) * qty;
+            const btn = _orderBtnMap['pos-tp'];
+            if (btn) {
+              btn.dataset.price = newVal;
+              const span = btn.querySelector('span');
+              if (span) span.textContent = tpSlBtnText('TP', newVal, pnl);
+              repositionOrderButtons();
+            }
+          },
+          onDragEnd: (newVal) => {
+            group.tp = newVal;
+            if (group.tradeId) patchTradeTPSL(group.tradeId, pid, newVal, null);
+          },
+          onRightClick: () => {
+            if (group.tradeId) patchTradeTPSL(group.tradeId, pid, 0, null).then(() => { window.drawPositionLines(); });
+          }
+        });
+      addOrderButton('pos-tp', latestTP, '#2EBD85', tpSlBtnText('TP', latestTP, tpPnl), '×',
+        () => { if (group.tradeId) patchTradeTPSL(group.tradeId, pid, 0, null).then(() => { window.drawPositionLines(); }); },
+        { passThrough: true });
+    }
+
+    // ── Stop Loss line — red, draggable ──
+    if (latestSL && latestSL > 0) {
+      const slPnl = isShort ? (avgEntry - latestSL) * qty : (latestSL - avgEntry) * qty;
+      group.slId = makePriceLine(latestSL, '#F6465D', '',
+        { style: 'solid', size: 2, draggable: true,
+          onDragMove: (newVal) => {
+            const pnl = isShort ? (avgEntry - newVal) * qty : (newVal - avgEntry) * qty;
+            const btn = _orderBtnMap['pos-sl'];
+            if (btn) {
+              btn.dataset.price = newVal;
+              const span = btn.querySelector('span');
+              if (span) span.textContent = tpSlBtnText('SL', newVal, pnl);
+              repositionOrderButtons();
+            }
+          },
+          onDragEnd: (newVal) => {
+            group.sl = newVal;
+            if (group.tradeId) patchTradeTPSL(group.tradeId, pid, null, newVal);
+          },
+          onRightClick: () => {
+            if (group.tradeId) patchTradeTPSL(group.tradeId, pid, null, 0).then(() => { window.drawPositionLines(); });
+          }
+        });
+      addOrderButton('pos-sl', latestSL, '#F6465D', tpSlBtnText('SL', latestSL, slPnl), '×',
+        () => { if (group.tradeId) patchTradeTPSL(group.tradeId, pid, null, 0).then(() => { window.drawPositionLines(); }); },
+        { passThrough: true });
+    }
+
+    _tradeLines.push(group);
+  };
+
+  // Update P&L labels in-place without destroying/recreating overlays.
+  // Safe to call from GBM tick — won't interrupt dragging.
+  function updatePositionLabels() {
+    if (!chart || _tradeLines.length === 0) return;
+    const g = _tradeLines[0];
+    if (!g || !g.entryId) return;
+
+    const pid = g.portfolioId;
+    const holdings = ALL_HOLDINGS[pid];
+    if (!Array.isArray(holdings)) return;
+    const pos = holdings.find(h => h.ticker === STOCK_TICKER);
+    if (!pos || pos.quantity <= 0) return;
+
+    const curPrice = pos.current_price || _cursorPrice || g.avgEntry;
+    const qty = g.qty;
+    const isShort = g.isShort;
+    const avgEntry = g.avgEntry;
+    const entryPnl = isShort ? (avgEntry - curPrice) * qty : (curPrice - avgEntry) * qty;
+    const pnlSign = entryPnl >= 0 ? '+' : '';
+    const dirTag = isShort ? 'SHORT' : 'LONG';
+
+    // Update entry label in-place
+    try {
+      chart.overrideOverlay({
+        id: g.entryId,
+        extendData: `${dirTag}  ${qty.toFixed(0)} × $${avgEntry.toFixed(2)}  ${pnlSign}$${Math.abs(entryPnl).toFixed(2)}`
+      });
+    } catch (_) {}
+
+    // Update entry button text
+    const entryBtn = _orderBtnMap['pos-entry'];
+    if (entryBtn) {
+      const span = entryBtn.querySelector('span');
+      if (span) span.textContent = `${qty.toFixed(0)}  ${pnlSign}${Math.abs(entryPnl).toFixed(2)} USD`;
+    }
+
+    // Update TP/SL button text (P&L doesn't change with price for fixed TP/SL,
+    // but update anyway in case the values were dragged)
+    if (g.tp && g.tp > 0) {
+      const tpPnl = isShort ? (avgEntry - g.tp) * qty : (g.tp - avgEntry) * qty;
+      const tpBtn = _orderBtnMap['pos-tp'];
+      if (tpBtn) {
+        const s = tpPnl >= 0 ? '+' : '';
+        tpBtn.querySelector('span').textContent = `TP  $${g.tp.toFixed(2)}  (${s}$${Math.abs(tpPnl).toFixed(2)})`;
+      }
+    }
+    if (g.sl && g.sl > 0) {
+      const slPnl = isShort ? (avgEntry - g.sl) * qty : (g.sl - avgEntry) * qty;
+      const slBtn = _orderBtnMap['pos-sl'];
+      if (slBtn) {
+        const s = slPnl >= 0 ? '+' : '';
+        slBtn.querySelector('span').textContent = `SL  $${g.sl.toFixed(2)}  (${s}$${Math.abs(slPnl).toFixed(2)})`;
+      }
+    }
+  }
+
+  // Close entire position (market order)
+  function closePosition(pid, pos) {
+    const action = pos.direction === 'short' ? 'buy' : 'sell';
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    fetch('/portfolios/' + pid + '/trades', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken, 'Accept': 'application/json' },
+      body: JSON.stringify({ trade: { ticker: STOCK_TICKER, action: action, quantity: pos.quantity, order_type: 'market' } })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.trade) {
+        if (data.cash_balance !== undefined) PORTFOLIO_CASH[pid] = data.cash_balance;
+        const hArr = ALL_HOLDINGS[pid] || [];
+        const idx = hArr.findIndex(h => h.ticker === STOCK_TICKER);
+        if (data.holding) {
+          const upd = { ticker: STOCK_TICKER, quantity: data.holding.quantity, average_cost: data.holding.average_cost, direction: data.holding.direction, current_price: pos.current_price };
+          if (idx >= 0) Object.assign(hArr[idx], upd); else hArr.push(upd);
+          PORTFOLIO_HOLDINGS[pid] = { quantity: data.holding.quantity, average_cost: data.holding.average_cost, direction: data.holding.direction };
+        } else {
+          if (idx >= 0) hArr.splice(idx, 1);
+          delete PORTFOLIO_HOLDINGS[pid];
+        }
+        if (!TRADE_HISTORY[pid]) TRADE_HISTORY[pid] = [];
+        TRADE_HISTORY[pid].unshift({ id: data.trade.id, ticker: data.trade.ticker, action: data.trade.action, order_type: data.trade.order_type, quantity: data.trade.quantity, price: data.trade.price_at_trade, status: data.trade.status, take_profit: null, stop_loss: null, executed_at: data.trade.executed_at, created_at: new Date().toLocaleString() });
+        if (window.drawPositionLines) window.drawPositionLines();
+        if (window.renderPanel) window.renderPanel();
+        showAutoNotification('Position closed — ' + action.toUpperCase() + ' ' + pos.quantity + ' ' + STOCK_TICKER, pos.direction === 'short' ? '#2EBD85' : '#F6465D');
+      }
+    });
+  }
+
+  // Legacy alias
+  window.drawTradeLines = function (_trade) {
+    window.drawPositionLines();
+  };
+
+  /* ════════════════════════════════════════════════════════════════
+     Right-click context menu
+  ════════════════════════════════════════════════════════════════ */
+  function hideContextMenu() {
+    document.getElementById('chart-context-menu').style.display = 'none';
+  }
+
+  let _ctxMenuPrice = 0; // price at the point of right-click
+
+  function showContextMenu(x, y, price) {
+    _ctxMenuPrice = price;
+    const menu = document.getElementById('chart-context-menu');
+    const priceStr = price.toFixed(2);
+    menu.querySelector('#ctx-price-label').textContent = priceStr;
+    menu.querySelectorAll('.ctx-p').forEach(el => el.textContent = priceStr);
+    menu.style.left    = x + 'px';
+    menu.style.top     = y + 'px';
+    menu.style.display = 'block';
+  }
+
+  // Convert mouse Y → price using KLineChart's coordinate system
+  let _chartPriceMin = null;
+  let _chartPriceMax = null;
+
+  function estimatePriceFromY(clientY) {
+    if (!chart) return _cursorPrice || 0;
+    const container = document.getElementById('chart-container');
+    if (!container) return _cursorPrice || 0;
+    const rect = container.getBoundingClientRect();
+    const y = clientY - rect.top;
+    try {
+      const result = chart.convertFromPixel({ y }, { paneId: 'candle_pane' });
+      if (result && typeof result.value === 'number' && result.value > 0) {
+        return result.value;
+      }
+    } catch (_) {}
+    // Fallback to linear approximation
+    if (_chartPriceMin && _chartPriceMax && _chartPriceMin !== _chartPriceMax) {
+      const fraction = (clientY - rect.top) / rect.height;
+      return _chartPriceMax - fraction * (_chartPriceMax - _chartPriceMin);
+    }
+    return _cursorPrice || 0;
+  }
+
+  function updatePriceRange(data) {
+    if (!data || data.length === 0) return;
+    _chartPriceMin = Math.min(...data.map(d => d.low));
+    _chartPriceMax = Math.max(...data.map(d => d.high));
+  }
+
+  window.ctxPlaceOrder = function (action, orderType) {
+    hideContextMenu();
+    const price = _ctxMenuPrice || _cursorPrice || 0;
+    openTradeModal(action);
+    // Pre-select the order type
+    const typeBtn = document.querySelector(`.order-type-btn[data-order-type="${orderType}"]`);
+    if (typeBtn) selectOrderType(orderType, typeBtn);
+    // Pre-fill limit/stop price from right-click Y position
+    if (orderType === 'limit') {
+      const el = document.getElementById('trade-limit-price');
+      if (el) el.value = price.toFixed(2);
+    }
+    if (orderType === 'stop') {
+      const el = document.getElementById('trade-stop-price');
+      if (el) el.value = price.toFixed(2);
+    }
+    // Pre-fill TP/SL with reasonable defaults:
+    const livePrice = getLivePrice() || price;
+    const tpEl = document.getElementById('trade-take-profit');
+    const slEl = document.getElementById('trade-stop-loss');
+    if (tpEl && livePrice > 0) tpEl.value = action === 'buy' ? (livePrice * 1.01).toFixed(2) : (livePrice * 0.99).toFixed(2);
+    if (slEl && livePrice > 0) slEl.value = action === 'buy' ? (livePrice * 0.99).toFixed(2) : (livePrice * 1.01).toFixed(2);
+  };
+
+  /* ════════════════════════════════════════════════════════════════
+     Chart initialisation
+  ════════════════════════════════════════════════════════════════ */
+  /* ════════════════════════════════════════════════════════════════
+     Custom rectangle overlay (not built-in in KLineChart v9)
+  ════════════════════════════════════════════════════════════════ */
+  function registerCustomOverlays() {
+    if (typeof klinecharts === 'undefined') return;
+    klinecharts.registerOverlay({
+      name: 'drawRect',
+      totalStep: 3,
+      needDefaultPointFigure: true,
+      needDefaultXAxisMark: false,
+      needDefaultYAxisMark: false,
+      createPointFigures: function (params) {
+        var overlay = params.overlay;
+        var coordinates = params.coordinates;
+        if (coordinates.length < 2) return [];
+        var p1 = coordinates[0];
+        var p2 = coordinates[1];
+        var x = Math.min(p1.x, p2.x);
+        var y = Math.min(p1.y, p2.y);
+        var w = Math.abs(p2.x - p1.x);
+        var h = Math.abs(p2.y - p1.y);
+        return [
+          {
+            type: 'rect',
+            attrs: { x: x, y: y, width: w, height: h },
+            styles: {
+              style: 'stroke_fill',
+              color: 'rgba(20,184,166,0.1)',
+              borderColor: '#14B8A6',
+              borderSize: 1
+            }
+          }
+        ];
+      }
+    });
+  }
+
+  function initChart() {
+    const container = document.getElementById('chart-container');
+    if (!container || typeof klinecharts === 'undefined') return;
+    registerCustomOverlays();
+
+    if (window.chart) {
+      try { klinecharts.dispose(container); } catch (_) {}
+    }
+
+    window.chart = chart = klinecharts.init(container, {
+      styles: {
+        grid: {
+          horizontal: { show: true, size: 1, color: 'rgba(255,255,255,0.04)', style: 'dashed', dashedValue: [2, 2] },
+          vertical:   { show: true, size: 1, color: 'rgba(255,255,255,0.04)', style: 'dashed', dashedValue: [2, 2] },
+        },
+        candle: {
+          bar: {
+            upColor: '#2EBD85', downColor: '#F6465D', noChangeColor: '#929AA5',
+            upBorderColor: '#2EBD85', downBorderColor: '#F6465D', noChangeBorderColor: '#929AA5',
+            upWickColor: '#2EBD85', downWickColor: '#F6465D', noChangeWickColor: '#929AA5',
+          },
+          tooltip: {
+            showRule: 'always', labels: ['T','O','H','L','C','V'], values: null, defaultValue: 'n/a',
+            rect: { paddingLeft: 0, paddingRight: 0, paddingTop: 0, paddingBottom: 6, offsetLeft: 8, offsetTop: 8, offsetRight: 8, borderRadius: 4, borderSize: 1, borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(13,15,23,0.9)' },
+            text: { size: 11, family: 'Menlo, monospace', weight: 'normal', color: '#929AA5', marginLeft: 8, marginTop: 6, marginRight: 8, marginBottom: 0 },
+          },
+        },
+        xAxis: {
+          show: true,
+          axisLine: { show: true, color: 'rgba(255,255,255,0.08)', size: 1 },
+          tickLine: { show: true, size: 1, length: 3, color: 'rgba(255,255,255,0.08)' },
+          tickText: { show: true, color: '#929AA5', family: "'Inter', sans-serif", weight: 'normal', size: 11 },
+        },
+        yAxis: {
+          show: true, type: 'normal', position: 'right',
+          axisLine: { show: true, color: 'rgba(255,255,255,0.08)', size: 1 },
+          tickLine: { show: true, size: 1, length: 3, color: 'rgba(255,255,255,0.08)' },
+          tickText: { show: true, color: '#929AA5', family: "'Inter', sans-serif", weight: 'normal', size: 11 },
+        },
+        separator: { size: 1, color: 'rgba(255,255,255,0.08)', fill: true, activeBackgroundColor: 'rgba(230,230,230,0.15)' },
+        crosshair: {
+          show: true,
+          horizontal: {
+            show: true, line: { show: true, style: 'dashed', dashedValue: [4, 2], size: 1, color: 'rgba(20,184,166,0.5)' },
+            text: { show: true, size: 11, family: "'Inter', sans-serif", weight: 'normal', color: '#0d0f17', paddingLeft: 4, paddingRight: 4, paddingTop: 3, paddingBottom: 3, borderSize: 1, borderColor: '#14B8A6', borderRadius: 2, backgroundColor: '#14B8A6' },
+          },
+          vertical: {
+            show: true, line: { show: true, style: 'dashed', dashedValue: [4, 2], size: 1, color: 'rgba(20,184,166,0.5)' },
+            text: { show: true, size: 11, family: "'Inter', sans-serif", weight: 'normal', color: '#0d0f17', paddingLeft: 4, paddingRight: 4, paddingTop: 3, paddingBottom: 3, borderSize: 1, borderColor: '#14B8A6', borderRadius: 2, backgroundColor: '#14B8A6' },
+          },
+        },
+        overlay: {
+          line: { style: 'solid', smooth: false, size: 1, color: '#14B8A6', dashedValue: [2, 2] },
+          circle: { style: 'fill', color: '#14B8A6', borderColor: '#14B8A6', borderSize: 1 },
+          rect: { style: 'fill', color: 'rgba(20,184,166,0.1)', borderColor: '#14B8A6', borderSize: 1 },
+          polygon: { style: 'fill', color: 'rgba(20,184,166,0.1)', borderColor: '#14B8A6', borderSize: 1 },
+          arc: { style: 'fill', color: 'rgba(20,184,166,0.1)', borderColor: '#14B8A6', borderSize: 1 },
+          text: { color: '#14B8A6', size: 12, family: "'Inter', sans-serif", weight: 'normal' },
+          point: { color: '#14B8A6', radius: 5, borderColor: '#14B8A6', borderSize: 2, activeRadius: 6, activeColor: '#14B8A6', activeBorderSize: 3, activeBorderColor: '#14B8A6' },
+        },
+      },
+      timezone: 'America/New_York',
+      locale: 'en-US',
+    });
+
+    chart.createIndicator('MA', false, { id: 'candle_pane' });
+    chart.createIndicator('VOL');
+
+    // Right-click on chart canvas → context menu
+    container.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      const price = estimatePriceFromY(e.clientY);
+      _cursorPrice = price;
+      showContextMenu(e.clientX, e.clientY, price);
+    });
+
+    // Track mouse position → price for context menu
+    container.addEventListener('mousemove', e => {
+      const est = estimatePriceFromY(e.clientY);
+      if (est > 0) _cursorPrice = est;
+    });
+
+    // Hide context menu on any click outside it
+    document.addEventListener('click', e => {
+      if (!e.target.closest('#chart-context-menu')) hideContextMenu();
+    });
+
+    loadData(1);
+    window.addEventListener('resize', () => { if (chart) chart.resize(); });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initChart);
+  } else {
+    initChart();
+  }
+  document.addEventListener('turbo:load', initChart);
+})();
+</script>

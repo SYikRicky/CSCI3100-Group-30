@@ -3,7 +3,6 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [ main ]
 
 jobs:
   scan_ruby:
@@ -90,6 +89,11 @@ jobs:
           ruby-version: '3.4.7'
           bundler-cache: true
 
+      - name: Set up database
+        env:
+          RAILS_ENV: test
+        run: bundle exec rails db:schema:load db:migrate
+
       - name: Run tests
         env:
           RAILS_ENV: test
@@ -118,6 +122,11 @@ jobs:
         with:
           ruby-version: '3.4.7' 
           bundler-cache: true
+
+      - name: Set up database
+        env:
+          RAILS_ENV: test
+        run: bundle exec rails db:schema:load db:migrate
 
       - name: Run System Tests
         env:

@@ -1,0 +1,65 @@
+<%# ── Info bar (fixed below navbar) ── %>
+<div style="position: fixed; top: 64px; left: 0; right: 0; z-index: 98;
+            background: rgba(13,15,23,0.97); backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255,255,255,0.07);
+            height: 56px; display: flex; align-items: center; padding: 0 1.5rem; gap: 1.5rem;">
+
+  <%= link_to "← Markets", stocks_path,
+      style: "color: #929AA5; font-size: 0.78rem; text-decoration: none; flex-shrink: 0; transition: color 0.2s;",
+      onmouseover: "this.style.color='#EAECEF'", onmouseout: "this.style.color='#929AA5'" %>
+
+  <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.1); flex-shrink: 0;"></div>
+
+  <div style="width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+              background: rgba(20,184,166,0.1); border: 1px solid rgba(20,184,166,0.2);
+              display: flex; align-items: center; justify-content: center; overflow: hidden;">
+    <img src="<%= stock_logo_url(@stock.ticker) %>"
+         alt="<%= @stock.ticker %>"
+         style="width: 20px; height: 20px; object-fit: contain;"
+         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+    <span style="display: none; width: 100%; height: 100%; align-items: center;
+                 justify-content: center; font-size: 0.55rem; font-weight: 700; color: #14B8A6;">
+      <%= @stock.ticker.first(2).upcase %>
+    </span>
+  </div>
+
+  <div style="display: flex; align-items: baseline; gap: 0.5rem; flex-shrink: 0;">
+    <span class="tw-font-custom" style="color: #EAECEF; font-size: 1rem; letter-spacing: 0.08em;">
+      <%= @stock.ticker %>
+    </span>
+    <span style="color: #929AA5; font-size: 0.78rem;"><%= @stock.company_name %></span>
+  </div>
+
+  <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.1); flex-shrink: 0;"></div>
+
+  <div style="display: flex; align-items: baseline; gap: 0.5rem; flex-shrink: 0;">
+    <span id="live-price" style="color: #EAECEF; font-size: 1.1rem; font-weight: 700;">
+      <% if @stock.last_price %>
+        $<%= format("%.2f", @stock.last_price.to_f) %>
+      <% else %>
+        —
+      <% end %>
+    </span>
+    <span id="price-change" style="font-size: 0.78rem; font-weight: 600;"></span>
+    <span style="color: #929AA5; font-size: 0.7rem;">USD</span>
+  </div>
+
+  <%# ── Timeframe selector ── %>
+  <div style="margin-left: auto; display: flex; align-items: center; gap: 0.25rem; flex-shrink: 0;">
+    <% [["1m", 1], ["5m", 5], ["15m", 15], ["1h", 60], ["4h", 240], ["1D", 1440]].each do |label, interval| %>
+      <button data-timeframe="<%= label %>" data-interval="<%= interval %>"
+              onclick="switchTimeframe(this)"
+              style="background: <%= label == '1m' ? 'rgba(20,184,166,0.15)' : 'transparent' %>;
+                     color: <%= label == '1m' ? '#14B8A6' : '#929AA5' %>;
+                     border: 1px solid <%= label == '1m' ? 'rgba(20,184,166,0.4)' : 'transparent' %>;
+                     border-radius: 4px; padding: 0.2rem 0.55rem; font-size: 0.72rem;
+                     font-weight: 600; cursor: pointer; transition: all 0.15s;">
+        <%= label %>
+      </button>
+    <% end %>
+    <div style="width: 1px; height: 16px; background: rgba(255,255,255,0.1); margin: 0 0.5rem;"></div>
+    <span style="background: rgba(20,184,166,0.12); color: #14B8A6; font-size: 0.68rem;
+                 font-weight: 700; padding: 0.12rem 0.5rem; border-radius: 20px; letter-spacing: 0.05em;">● LIVE</span>
+  </div>
+
+</div>

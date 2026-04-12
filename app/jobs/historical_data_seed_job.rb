@@ -4,7 +4,7 @@ class HistoricalDataSeedJob < ApplicationJob
   def perform(stock_id, start_date, end_date)
     stock = Stock.find(stock_id)
 
-    service = TiingoService.new
+    service = AlpacaService.new
     data_points = service.fetch_historical_prices(
       ticker: stock.ticker,
       start_date: start_date,

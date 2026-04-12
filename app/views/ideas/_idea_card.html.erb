@@ -1,0 +1,79 @@
+<%
+  dir_color = case idea.direction
+              when "long"    then "#2EBD85"
+              when "short"   then "#F6465D"
+              else "#929AA5"
+              end
+  dir_bg = case idea.direction
+           when "long"    then "rgba(46,189,133,0.12)"
+           when "short"   then "rgba(246,70,93,0.12)"
+           else "rgba(146,154,165,0.12)"
+           end
+%>
+<div data-testid="idea-card-<%= idea.id %>"
+     style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px; padding: 1.25rem; transition: border-color 0.15s;"
+     onmouseover="this.style.borderColor='rgba(20,184,166,0.3)'"
+     onmouseout="this.style.borderColor='rgba(255,255,255,0.08)'">
+
+  <%# ── Header: Direction badge + Stock ticker ── %>
+  <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.6rem;">
+    <span style="display: inline-block; font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+                 letter-spacing: 0.06em; padding: 0.2rem 0.5rem; border-radius: 4px;
+                 color: <%= dir_color %>; background: <%= dir_bg %>;"><%= idea.direction %></span>
+    <% if idea.stock %>
+      <span style="font-size: 0.72rem; font-weight: 600; color: #14B8A6;"><%= idea.stock.ticker %></span>
+    <% end %>
+    <span style="margin-left: auto; font-size: 0.72rem; color: #929AA5;">
+      <%= idea.published_at&.strftime("%b %d, %Y") %>
+    </span>
+  </div>
+
+  <%# ── Title ── %>
+  <%= link_to idea_path(idea), style: "text-decoration: none;" do %>
+    <h3 style="color: #EAECEF; font-size: 1.05rem; font-weight: 600; margin: 0 0 0.5rem;
+               line-height: 1.4;"><%= idea.title %></h3>
+  <% end %>
+
+  <%# ── Truncated body ── %>
+  <p style="color: #929AA5; font-size: 0.82rem; line-height: 1.5; margin: 0 0 0.75rem;">
+    <%= truncate(idea.body.to_plain_text, length: 180) %>
+  </p>
+
+  <%# ── Footer: Author + Stats ── %>
+  <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+    <div style="display: flex; align-items: center; gap: 0.5rem;">
+      <div style="width: 28px; height: 28px; border-radius: 50%; background: rgba(20,184,166,0.15);
+                  border: 1px solid rgba(20,184,166,0.3); display: flex; align-items: center;
+                  justify-content: center; font-size: 0.7rem; font-weight: 700; color: #14B8A6;">
+        <%= idea.user.display_name&.first&.upcase || "?" %>
+      </div>
+      <span style="font-size: 0.78rem; color: #EAECEF; font-weight: 500;"><%= idea.user.display_name %></span>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 1rem;">
+      <span style="font-size: 0.72rem; color: #929AA5;" title="Likes">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             style="vertical-align: -2px; margin-right: 2px;">
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+        </svg>
+        <%= idea.likes_count %>
+      </span>
+      <span style="font-size: 0.72rem; color: #929AA5;" title="Comments">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             style="vertical-align: -2px; margin-right: 2px;">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+        <%= idea.comments_count %>
+      </span>
+      <span style="font-size: 0.72rem; color: #929AA5;" title="Views">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             style="vertical-align: -2px; margin-right: 2px;">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+        <%= idea.views_count %>
+      </span>
+    </div>
+  </div>
+</div>

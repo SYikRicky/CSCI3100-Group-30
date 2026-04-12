@@ -1,0 +1,8 @@
+<div id="widget-<%= dom_id(message) %>"
+     style="padding: 0.35rem 0; font-size: 0.8rem;">
+  <span style="color: #14B8A6; font-weight: 600;"><%= message.sender.display_name %></span>
+  <span style="color: #929AA5; font-size: 0.65rem; margin-left: 0.35rem;">
+    <%= message.created_at.strftime("%H:%M") %>
+  </span>
+  <p style="color: #EAECEF; margin: 0.15rem 0 0; word-break: break-word;"><%= message.content %></p>
+</div>
