@@ -15,7 +15,6 @@ RSpec.describe TradeMailer, type: :mailer do
       expect(mail.to).to eq([ user.email ])
       expect(mail.from).to eq([ "notifications@mock-fund-league.cuhk.edu.hk" ])
       expect(mail.reply_to).to eq([ "support@mock-fund-league.cuhk.edu.hk" ])
-
     end
 
     it "includes trade details and the mandatory disclaimer" do
@@ -31,12 +30,10 @@ RSpec.describe TradeMailer, type: :mailer do
       expect(sell_mail.body.encoded).to include("sold")
     end
 
-    it "greets the user by their email name" do
-      # alice@cuhk.edu.hk
-      expect(mail.body.encoded).to include("Hello alice")
+    it "greets the user by name" do
+      # changed to greet by random names
+      expect(mail.body.encoded).to include("Hello #{user.name}")
     end
-
-
   end
 
   describe "daily_summary" do
@@ -56,6 +53,5 @@ RSpec.describe TradeMailer, type: :mailer do
       # empty portfolios
       expect(mail.body.encoded).to include("You didn't make any trades today")
     end
-
   end
 end

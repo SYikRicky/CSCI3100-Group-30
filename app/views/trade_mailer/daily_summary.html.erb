@@ -1,8 +1,18 @@
 <h1>Daily Portfolio Summary</h1>
 
-
 <p>Hello <%= @user.display_name %>,</p>
 
 <p>Your daily summary for <%= @league.name %></p>
+
+<% if @trades.present? && @trades.any? %>
+  <p>Here are your trades from today:</p>
+  <ul>
+    <% @trades.each do |trade| %>
+      <li><%= trade.action.capitalize %> <%= trade.quantity %> shares of <%= trade.stock.ticker %></li>
+    <% end %>
+  </ul>
+<% else %>
+  <p>You didn't make any trades today.</p>
+<% end %>
 
 <p>Current Cash Balance: $<%= number_with_precision(@portfolio.cash_balance, precision: 2) %></p>
