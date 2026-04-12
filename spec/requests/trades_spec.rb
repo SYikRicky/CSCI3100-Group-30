@@ -120,6 +120,46 @@ RSpec.describe "Trades", type: :request do
     end
   end
 
+  describe "POST /portfolios/:portfolio_id/trades/check_tp_sl" do
+    it "returns triggered and filled_orders arrays" do
+      create(:holding, portfolio: portfolio, stock: stock, quantity: 5, average_cost: 90,
+             direction: "long")
+
+      post check_tp_sl_portfolio_trades_path(portfolio), params: {
+        ticker: stock.ticker, current_price: "100.0"
+      }, headers: { "Accept" => "application/json" }
+
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+      expect(json).to have_key("triggered")
+      expect(json).to have_key("filled_orders")
+      expect(json).to have_key("cash_balance")
+    end
+
+    it "returns empty arrays when stock not found" do
+      post check_tp_sl_portfolio_trades_path(portfolio), params: {
+        ticker: "NONEXIST"
+      }, headers: { "Accept" => "application/json" }
+
+      json = JSON.parse(response.body)
+      expect(json["triggered"]).to eq([])
+      expect(json["filled_orders"]).to eq([])
+    end
+  end
+
+  describe "PATCH /portfolios/:portfolio_id/trades/:id/cancel" do
+    it "cancels a pending trade" do
+      trade = create(:trade, portfolio: portfolio, stock: stock, status: "pending",
+                     order_type: "limit", limit_price: 95)
+
+      patch cancel_portfolio_trade_path(portfolio, trade),
+            headers: { "Accept" => "application/json" }
+
+      expect(response).to have_http_status(:ok)
+      expect(trade.reload.status).to eq("cancelled")
+    end
+  end
+
   describe "PATCH /portfolios/:portfolio_id/trades/:id" do
     let!(:trade) do
       create(:trade, portfolio: portfolio, stock: stock,
