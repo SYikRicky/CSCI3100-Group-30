@@ -56,7 +56,7 @@
         </div>
 
         <%= form_with url: chatroom_messages_path(chatroom_id: @selected_friend.id), method: :post, scope: :message,
-            data: { turbo: false }, html: { data: { testid: "chat-message-form" } } do |f| %>
+            html: { data: { testid: "chat-message-form" } } do |f| %>
           <div style="display: flex; gap: 0.75rem; align-items: flex-end; border-top: 1px solid rgba(255,255,255,0.08);
                       padding-top: 0.75rem; margin-top: auto;">
             <%= f.text_area :content, rows: 2, required: true, placeholder: "Type a message…",

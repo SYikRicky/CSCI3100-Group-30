@@ -1,8 +1,7 @@
 # Redis adapter allows broadcasts across multiple processes and browser sessions.
 # Requires Redis running (configured in docker-compose.yml).
 development:
-  adapter: redis
-  url: <%= ENV.fetch("REDIS_URL", "redis://localhost:6379/1") %>
+  adapter: async
 
 # Use async so browser clients (e.g. Cucumber + Selenium + Turbo Streams) receive
 # broadcasts in the same Puma process. The :test adapter only queues for assert_broadcasts.

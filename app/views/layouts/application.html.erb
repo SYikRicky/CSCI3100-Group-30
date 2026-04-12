@@ -90,67 +90,40 @@
         <div style="display: flex; align-items: center; gap: 0.75rem; flex-shrink: 0; position: relative;">
           <% if user_signed_in? %>
 
-            <%# Friend panel button %>
-            <button data-testid="friend-panel-btn"
-                    onclick="var p=document.getElementById('friend-panel');p.style.display=p.style.display==='none'?'block':'none'"
-                    style="background: none; border: none; cursor: pointer; color: #929AA5;
-                           font-size: 0.8rem; padding: 0.4rem 0.6rem; border-radius: 4px; transition: color 0.2s;"
-                    onmouseover="this.style.color='#EAECEF'" onmouseout="this.style.color='#929AA5'">
-              Friends
-            </button>
-
-            <%# Friend panel dropdown %>
-            <div id="friend-panel" data-testid="friend-panel"
-                 style="display: none; position: absolute; top: 48px; right: 120px; z-index: 1000;
-                        background: #12141e; border: 1px solid rgba(255,255,255,0.1);
-                        border-radius: 10px; padding: 1rem; min-width: 200px; max-height: 300px; overflow-y: auto;">
-              <p style="color: #929AA5; font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
-                        letter-spacing: 0.08em; margin: 0 0 0.75rem;">Friends</p>
-              <% if current_user.friends.any? %>
-                <% current_user.friends.each do |friend| %>
-                  <div style="padding: 0.4rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);
-                              font-size: 0.82rem; color: #EAECEF;">
-                    <%= friend.email %>
-                  </div>
+            <%# Mailbox button + dropdown (Stimulus controller) %>
+            <div data-controller="mailbox" data-mailbox-mark-read-url-value="<%= mark_read_notifications_path %>" style="position: relative;">
+              <button data-testid="mailbox-btn"
+                      data-action="click->mailbox#toggle"
+                      style="background: none; border: none; cursor: pointer; color: #929AA5;
+                             font-size: 1rem; padding: 0.4rem 0.5rem; border-radius: 4px;
+                             position: relative; transition: color 0.2s;"
+                      onmouseover="this.style.color='#EAECEF'" onmouseout="this.style.color='#929AA5'">
+                ✉
+                <% if @unread_notifications_count&.positive? %>
+                  <span data-mailbox-target="badge" style="position: absolute; top: 2px; right: 2px; width: 7px; height: 7px;
+                               background: #F6465D; border-radius: 50%; display: block;"></span>
                 <% end %>
-              <% else %>
-                <p style="color: #929AA5; font-size: 0.82rem; margin: 0;">No friends yet.</p>
-              <% end %>
-            </div>
+              </button>
 
-            <%# Mailbox button %>
-            <button data-testid="mailbox-btn"
-                    onclick="var d=document.getElementById('mailbox-dropdown');d.style.display=d.style.display==='none'?'block':'none'"
-                    style="background: none; border: none; cursor: pointer; color: #929AA5;
-                           font-size: 1rem; padding: 0.4rem 0.5rem; border-radius: 4px;
-                           position: relative; transition: color 0.2s;"
-                    onmouseover="this.style.color='#EAECEF'" onmouseout="this.style.color='#929AA5'">
-              ✉
-              <% if @notifications&.any? %>
-                <span style="position: absolute; top: 2px; right: 2px; width: 7px; height: 7px;
-                             background: #F6465D; border-radius: 50%; display: block;"></span>
-              <% end %>
-            </button>
-
-            <%# Mailbox dropdown %>
-            <div id="mailbox-dropdown" data-testid="mailbox-dropdown"
-                 style="display: none; position: absolute; top: 48px; right: 60px; z-index: 1000;
-                        background: #12141e; border: 1px solid rgba(255,255,255,0.1);
-                        border-radius: 10px; padding: 1rem; min-width: 280px; max-height: 360px; overflow-y: auto;">
-              <p style="color: #929AA5; font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
-                        letter-spacing: 0.08em; margin: 0 0 0.75rem;">Notifications</p>
-              <% if @notifications&.any? %>
-                <% @notifications.each do |n| %>
-                  <div style="padding: 0.6rem 0; border-bottom: 1px solid rgba(255,255,255,0.06);">
-                    <p style="color: #EAECEF; font-size: 0.82rem; font-weight: 600; margin: 0 0 0.2rem;">
-                      <%= n.title %>
-                    </p>
-                    <p style="color: #929AA5; font-size: 0.78rem; margin: 0;"><%= n.body %></p>
-                  </div>
+              <div data-mailbox-target="dropdown" data-testid="mailbox-dropdown"
+                   style="display: none; position: absolute; top: 48px; right: 0; z-index: 1000;
+                          background: #12141e; border: 1px solid rgba(255,255,255,0.1);
+                          border-radius: 10px; padding: 1rem; min-width: 280px; max-height: 360px; overflow-y: auto;">
+                <p style="color: #929AA5; font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+                          letter-spacing: 0.08em; margin: 0 0 0.75rem;">Notifications</p>
+                <% if @notifications&.any? %>
+                  <% @notifications.each do |n| %>
+                    <div style="padding: 0.6rem 0; border-bottom: 1px solid rgba(255,255,255,0.06);">
+                      <p style="color: #EAECEF; font-size: 0.82rem; font-weight: 600; margin: 0 0 0.2rem;">
+                        <%= n.title %>
+                      </p>
+                      <p style="color: #929AA5; font-size: 0.78rem; margin: 0;"><%= n.body %></p>
+                    </div>
+                  <% end %>
+                <% else %>
+                  <p style="color: #929AA5; font-size: 0.82rem; margin: 0;">No notifications</p>
                 <% end %>
-              <% else %>
-                <p style="color: #929AA5; font-size: 0.82rem; margin: 0;">No notifications</p>
-              <% end %>
+              </div>
             </div>
 
             <span style="color: #929AA5; font-size: 0.8rem;"><%= current_user.display_name %></span>
@@ -176,6 +149,10 @@
     <main style="padding-top: 64px;">
       <%= yield %>
     </main>
+
+    <% if user_signed_in? %>
+      <%= render "shared/chat_widget" %>
+    <% end %>
 
   </body>
 </html>

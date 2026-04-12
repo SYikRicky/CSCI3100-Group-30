@@ -1,454 +1,19 @@
 <% content_for :title, "#{@stock.ticker} — #{@stock.company_name}" %>
 
-<%# ── Info bar (fixed below navbar) ── %>
-<div style="position: fixed; top: 64px; left: 0; right: 0; z-index: 98;
-            background: rgba(13,15,23,0.97); backdrop-filter: blur(12px);
-            border-bottom: 1px solid rgba(255,255,255,0.07);
-            height: 56px; display: flex; align-items: center; padding: 0 1.5rem; gap: 1.5rem;">
+<%= render "stocks/info_bar" %>
 
-  <%= link_to "← Markets", stocks_path,
-      style: "color: #929AA5; font-size: 0.78rem; text-decoration: none; flex-shrink: 0; transition: color 0.2s;",
-      onmouseover: "this.style.color='#EAECEF'", onmouseout: "this.style.color='#929AA5'" %>
-
-  <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.1); flex-shrink: 0;"></div>
-
-  <div style="width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
-              background: rgba(20,184,166,0.1); border: 1px solid rgba(20,184,166,0.2);
-              display: flex; align-items: center; justify-content: center; overflow: hidden;">
-    <img src="<%= stock_logo_url(@stock.ticker) %>"
-         alt="<%= @stock.ticker %>"
-         style="width: 20px; height: 20px; object-fit: contain;"
-         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-    <span style="display: none; width: 100%; height: 100%; align-items: center;
-                 justify-content: center; font-size: 0.55rem; font-weight: 700; color: #14B8A6;">
-      <%= @stock.ticker.first(2).upcase %>
-    </span>
-  </div>
-
-  <div style="display: flex; align-items: baseline; gap: 0.5rem; flex-shrink: 0;">
-    <span class="tw-font-custom" style="color: #EAECEF; font-size: 1rem; letter-spacing: 0.08em;">
-      <%= @stock.ticker %>
-    </span>
-    <span style="color: #929AA5; font-size: 0.78rem;"><%= @stock.company_name %></span>
-  </div>
-
-  <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.1); flex-shrink: 0;"></div>
-
-  <div style="display: flex; align-items: baseline; gap: 0.5rem; flex-shrink: 0;">
-    <span id="live-price" style="color: #EAECEF; font-size: 1.1rem; font-weight: 700;">
-      <% if @stock.last_price %>
-        $<%= format("%.2f", @stock.last_price.to_f) %>
-      <% else %>
-        —
-      <% end %>
-    </span>
-    <span id="price-change" style="font-size: 0.78rem; font-weight: 600;"></span>
-    <span style="color: #929AA5; font-size: 0.7rem;">USD</span>
-  </div>
-
-  <%# ── Timeframe selector ── %>
-  <div style="margin-left: auto; display: flex; align-items: center; gap: 0.25rem; flex-shrink: 0;">
-    <% [["1m", 1], ["5m", 5], ["15m", 15], ["1h", 60], ["4h", 240], ["1D", 1440]].each do |label, interval| %>
-      <button data-timeframe="<%= label %>" data-interval="<%= interval %>"
-              onclick="switchTimeframe(this)"
-              style="background: <%= label == '1m' ? 'rgba(20,184,166,0.15)' : 'transparent' %>;
-                     color: <%= label == '1m' ? '#14B8A6' : '#929AA5' %>;
-                     border: 1px solid <%= label == '1m' ? 'rgba(20,184,166,0.4)' : 'transparent' %>;
-                     border-radius: 4px; padding: 0.2rem 0.55rem; font-size: 0.72rem;
-                     font-weight: 600; cursor: pointer; transition: all 0.15s;">
-        <%= label %>
-      </button>
-    <% end %>
-    <div style="width: 1px; height: 16px; background: rgba(255,255,255,0.1); margin: 0 0.5rem;"></div>
-    <span style="background: rgba(20,184,166,0.12); color: #14B8A6; font-size: 0.68rem;
-                 font-weight: 700; padding: 0.12rem 0.5rem; border-radius: 20px; letter-spacing: 0.05em;">● LIVE</span>
-  </div>
-
-</div>
-
-<%# ── Drawing toolbar (left side) ── %>
-<div id="drawing-toolbar"
-     style="position: fixed; top: 130px; left: 0.6rem; z-index: 10;
-            display: flex; flex-direction: column; gap: 0.3rem;">
-  <% [
-    ["cursor", nil,                       "↖", "Cursor / Select"],
-    ["trend",  "trendLine",               "╱", "Trend Line"],
-    ["hline",  "horizontalStraightLine",  "─", "Horizontal Line"],
-    ["vline",  "verticalStraightLine",    "│", "Vertical Line"],
-    ["fib",    "fibonacciLine",           "ƒ", "Fibonacci Retracement"],
-    ["rect",   "rect",                    "□", "Rectangle"],
-  ].each do |id, overlay, icon, title| %>
-    <button id="draw-btn-<%= id %>"
-            onclick="setDrawing(<%= overlay.nil? ? 'null' : "'#{overlay}'" %>, this)"
-            title="<%= title %>"
-            style="width: 32px; height: 32px; border-radius: 6px;
-                   background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-                   color: #929AA5; font-size: 0.95rem; cursor: pointer;
-                   display: flex; align-items: center; justify-content: center;
-                   transition: all 0.15s;">
-      <%= icon %>
-    </button>
-  <% end %>
-  <div style="width: 32px; height: 1px; background: rgba(255,255,255,0.1); margin: 0.1rem 0;"></div>
-  <button onclick="if(chart && _overlayStack.length){ _overlayStack.forEach(id=>{try{chart.removeOverlay(id)}catch(_){}}); _overlayStack.length=0; }"
-          title="Clear drawings (keeps order lines)"
-          style="width: 32px; height: 32px; border-radius: 6px;
-                 background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-                 color: #F6465D; font-size: 0.8rem; cursor: pointer;
-                 display: flex; align-items: center; justify-content: center;
-                 transition: all 0.15s;">
-    ✕
-  </button>
-</div>
+<%= render "stocks/drawing_toolbar" %>
 
 <%# ── Chart (above trading panel) ── %>
 <div id="chart-container"
      style="position: fixed; top: 120px; left: 50px; right: 0; bottom: 240px; z-index: 1;"></div>
 <div id="chart-order-buttons" style="position: fixed; right: 60px; top: 120px; bottom: 240px; z-index: 10; pointer-events: none;"></div>
 
-<%# ── Right-click context menu ── %>
-<div id="chart-context-menu"
-     style="display: none; position: fixed; z-index: 500; min-width: 180px;
-            background: #1a1d2e; border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 8px; padding: 0.4rem 0; box-shadow: 0 8px 32px rgba(0,0,0,0.6);">
-  <div style="padding: 0.4rem 1rem; color: #929AA5; font-size: 0.68rem;
-              font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
-              border-bottom: 1px solid rgba(255,255,255,0.07); margin-bottom: 0.25rem;">
-    Price: $<span id="ctx-price-label">0.00</span>
-  </div>
-  <button onclick="ctxPlaceOrder('buy','market')"
-          style="width:100%;padding:0.45rem 1rem;text-align:left;background:none;border:none;
-                 color:#2EBD85;font-size:0.8rem;font-weight:600;cursor:pointer;"
-          onmouseover="this.style.background='rgba(46,189,133,0.1)'" onmouseout="this.style.background='none'">▲ Market Buy</button>
-  <button onclick="ctxPlaceOrder('sell','market')"
-          style="width:100%;padding:0.45rem 1rem;text-align:left;background:none;border:none;
-                 color:#F6465D;font-size:0.8rem;font-weight:600;cursor:pointer;"
-          onmouseover="this.style.background='rgba(246,70,93,0.1)'" onmouseout="this.style.background='none'">▼ Market Sell</button>
-  <div style="height:1px;background:rgba(255,255,255,0.07);margin:0.25rem 0;"></div>
-  <button onclick="ctxPlaceOrder('buy','limit')"
-          style="width:100%;padding:0.45rem 1rem;text-align:left;background:none;border:none;
-                 color:#EAECEF;font-size:0.8rem;cursor:pointer;"
-          onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='none'">Limit Buy @ $<span class="ctx-p">0.00</span></button>
-  <button onclick="ctxPlaceOrder('sell','limit')"
-          style="width:100%;padding:0.45rem 1rem;text-align:left;background:none;border:none;
-                 color:#EAECEF;font-size:0.8rem;cursor:pointer;"
-          onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='none'">Limit Sell @ $<span class="ctx-p">0.00</span></button>
-  <button onclick="ctxPlaceOrder('buy','stop')"
-          style="width:100%;padding:0.45rem 1rem;text-align:left;background:none;border:none;
-                 color:#EAECEF;font-size:0.8rem;cursor:pointer;"
-          onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='none'">Stop Buy @ $<span class="ctx-p">0.00</span></button>
-  <button onclick="ctxPlaceOrder('sell','stop')"
-          style="width:100%;padding:0.45rem 1rem;text-align:left;background:none;border:none;
-                 color:#EAECEF;font-size:0.8rem;cursor:pointer;"
-          onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='none'">Stop Sell @ $<span class="ctx-p">0.00</span></button>
-</div>
+<%= render "stocks/context_menu" %>
 
-<%# ══════════════════════════════════════════════════════════════ %>
-<%# ── Bottom Trading Panel (TradingView-style) ── %>
-<%# ══════════════════════════════════════════════════════════════ %>
-<div id="trading-panel"
-     style="position: fixed; bottom: 0; left: 0; right: 0; height: 240px; z-index: 50;
-            background: #0d0f17; border-top: 1px solid rgba(255,255,255,0.1);
-            display: flex; flex-direction: column; font-size: 0.78rem;">
+<%= render "stocks/trading_panel" %>
 
-  <%# ── Panel header: account selector + stats + buy/sell ── %>
-  <div style="display: flex; align-items: center; padding: 0.4rem 1rem; gap: 1rem;
-              border-bottom: 1px solid rgba(255,255,255,0.07); flex-shrink: 0;">
-
-    <%# Paper Trading badge %>
-    <span style="background: rgba(20,184,166,0.12); color: #14B8A6; font-size: 0.68rem;
-                 font-weight: 700; padding: 0.15rem 0.6rem; border-radius: 4px;
-                 letter-spacing: 0.05em; flex-shrink: 0;">Paper Trading</span>
-
-    <%# Portfolio / League selector %>
-    <% if @portfolios.any? %>
-      <select id="panel-portfolio-select"
-              onchange="onPanelPortfolioChange()"
-              style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
-                     border-radius: 4px; color: #EAECEF; font-size: 0.75rem; padding: 0.2rem 0.5rem;
-                     cursor: pointer; max-width: 200px;">
-        <% @portfolios.each do |p| %>
-          <option value="<%= p.id %>"><%= p.league.name %></option>
-        <% end %>
-      </select>
-    <% end %>
-
-    <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.08);"></div>
-
-    <%# Account stats (updated by JS) %>
-    <div style="display: flex; gap: 1.5rem; flex: 1; color: #929AA5; font-size: 0.72rem;">
-      <span>Cash <strong id="panel-cash" style="color: #EAECEF; margin-left: 0.3rem;">—</strong></span>
-      <span>Holdings <strong id="panel-holdings-val" style="color: #EAECEF; margin-left: 0.3rem;">—</strong></span>
-      <span>Total <strong id="panel-total-val" style="color: #EAECEF; margin-left: 0.3rem;">—</strong></span>
-      <span>P&L <strong id="panel-pnl" style="margin-left: 0.3rem;">—</strong></span>
-    </div>
-
-    <%# Buy / Sell buttons %>
-    <div style="display: flex; gap: 0.4rem; flex-shrink: 0;">
-      <button onclick="openTradeModal('buy')"
-              style="background: #2EBD85; color: #fff; font-weight: 700; font-size: 0.75rem;
-                     border: none; border-radius: 4px; padding: 0.35rem 1.2rem; cursor: pointer;
-                     transition: background 0.15s;"
-              onmouseover="this.style.background='#25a673'" onmouseout="this.style.background='#2EBD85'">
-        ▲ Buy
-      </button>
-      <button onclick="openTradeModal('sell')"
-              style="background: #F6465D; color: #fff; font-weight: 700; font-size: 0.75rem;
-                     border: none; border-radius: 4px; padding: 0.35rem 1.2rem; cursor: pointer;
-                     transition: background 0.15s;"
-              onmouseover="this.style.background='#d93650'" onmouseout="this.style.background='#F6465D'">
-        ▼ Sell
-      </button>
-    </div>
-  </div>
-
-  <%# ── Tab bar ── %>
-  <div style="display: flex; border-bottom: 1px solid rgba(255,255,255,0.07); flex-shrink: 0;">
-    <% ["Positions", "Open Orders", "Order History"].each_with_index do |tab, i| %>
-      <button class="panel-tab" data-tab="<%= tab.downcase.gsub(' ', '-') %>"
-              onclick="switchPanelTab(this)"
-              style="padding: 0.4rem 1rem; background: none; border: none;
-                     border-bottom: 2px solid <%= i == 0 ? '#14B8A6' : 'transparent' %>;
-                     color: <%= i == 0 ? '#14B8A6' : '#929AA5' %>; font-size: 0.72rem;
-                     font-weight: 600; cursor: pointer; transition: all 0.15s;">
-        <%= tab %>
-      </button>
-    <% end %>
-  </div>
-
-  <%# ── Tab content (scrollable) ── %>
-  <div style="flex: 1; overflow-y: auto;">
-
-    <%# Positions tab %>
-    <div id="tab-positions" class="panel-tab-content" style="">
-      <table style="width: 100%; border-collapse: collapse;">
-        <thead>
-          <tr style="color: #929AA5; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em;">
-            <th style="padding: 0.4rem 1rem; text-align: left; font-weight: 600;">Symbol</th>
-            <th style="padding: 0.4rem 0.5rem; text-align: right; font-weight: 600;">Qty</th>
-            <th style="padding: 0.4rem 0.5rem; text-align: right; font-weight: 600;">Avg Cost</th>
-            <th style="padding: 0.4rem 0.5rem; text-align: right; font-weight: 600;">Current</th>
-            <th style="padding: 0.4rem 0.5rem; text-align: right; font-weight: 600;">Market Value</th>
-            <th style="padding: 0.4rem 1rem; text-align: right; font-weight: 600;">P&L</th>
-          </tr>
-        </thead>
-        <tbody id="positions-body"></tbody>
-      </table>
-      <div id="positions-empty" style="display: none; padding: 1.5rem; text-align: center; color: #929AA5; font-size: 0.8rem;">
-        No positions yet. Start trading to build your portfolio.
-      </div>
-    </div>
-
-    <%# Open Orders tab %>
-    <div id="tab-open-orders" class="panel-tab-content" style="display: none;">
-      <table style="width: 100%; border-collapse: collapse;">
-        <thead>
-          <tr style="color: #929AA5; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em;">
-            <th style="padding: 0.4rem 1rem; text-align: left; font-weight: 600;">Symbol</th>
-            <th style="padding: 0.4rem 0.5rem; text-align: left; font-weight: 600;">Type</th>
-            <th style="padding: 0.4rem 0.5rem; text-align: left; font-weight: 600;">Side</th>
-            <th style="padding: 0.4rem 0.5rem; text-align: right; font-weight: 600;">Qty</th>
-            <th style="padding: 0.4rem 0.5rem; text-align: right; font-weight: 600;">Price</th>
-            <th style="padding: 0.4rem 0.5rem; text-align: left; font-weight: 600;">Placed</th>
-            <th style="padding: 0.4rem 1rem; text-align: center; font-weight: 600;">Action</th>
-          </tr>
-        </thead>
-        <tbody id="orders-body"></tbody>
-      </table>
-      <div id="orders-empty" style="display: none; padding: 1.5rem; text-align: center; color: #929AA5; font-size: 0.8rem;">
-        No open orders.
-      </div>
-    </div>
-
-    <%# Order History tab %>
-    <div id="tab-order-history" class="panel-tab-content" style="display: none;">
-      <table style="width: 100%; border-collapse: collapse;">
-        <thead>
-          <tr style="color: #929AA5; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em;">
-            <th style="padding: 0.4rem 1rem; text-align: left; font-weight: 600;">Symbol</th>
-            <th style="padding: 0.4rem 0.5rem; text-align: left; font-weight: 600;">Type</th>
-            <th style="padding: 0.4rem 0.5rem; text-align: left; font-weight: 600;">Side</th>
-            <th style="padding: 0.4rem 0.5rem; text-align: right; font-weight: 600;">Qty</th>
-            <th style="padding: 0.4rem 0.5rem; text-align: right; font-weight: 600;">Price</th>
-            <th style="padding: 0.4rem 0.5rem; text-align: left; font-weight: 600;">Status</th>
-            <th style="padding: 0.4rem 1rem; text-align: left; font-weight: 600;">Date</th>
-          </tr>
-        </thead>
-        <tbody id="history-body"></tbody>
-      </table>
-      <div id="history-empty" style="display: none; padding: 1.5rem; text-align: center; color: #929AA5; font-size: 0.8rem;">
-        No trade history yet.
-      </div>
-    </div>
-  </div>
-</div>
-
-<%# ══════════════════════════════════════════════════════════════ %>
-<%# ── Trade Modal ── %>
-<%# ══════════════════════════════════════════════════════════════ %>
-<div id="trade-modal"
-     style="display: none; position: fixed; inset: 0; z-index: 200;
-            background: rgba(0,0,0,0.75); align-items: center; justify-content: center; padding: 1.5rem;"
-     onclick="if(event.target===this) closeTrade()">
-  <div style="background: #12141e; border: 1px solid rgba(255,255,255,0.1);
-              border-radius: 16px; padding: 2rem; width: 100%; max-width: 420px; position: relative;">
-
-    <button onclick="closeTrade()"
-            style="position: absolute; top: 1rem; right: 1rem; background: none; border: none;
-                   color: #929AA5; font-size: 1.4rem; cursor: pointer; line-height: 1; padding: 0;"
-            onmouseover="this.style.color='#EAECEF'" onmouseout="this.style.color='#929AA5'">&times;</button>
-
-    <h2 id="trade-title" class="tw-font-custom"
-        style="color: #EAECEF; font-size: 1.2rem; letter-spacing: 0.08em;
-               text-transform: uppercase; margin: 0 0 1.5rem;"></h2>
-
-    <div id="trade-msg" style="display: none; border-radius: 8px; padding: 0.7rem 1rem;
-                               margin-bottom: 1rem; font-size: 0.85rem; text-align: center;"></div>
-
-    <%= form_with url: "#", id: "trade-form", data: { turbo: false } do |f| %>
-      <input type="hidden" name="trade[ticker]" value="<%= @stock.ticker %>">
-      <input type="hidden" id="trade-action-field" name="trade[action]" value="buy">
-
-      <%# Portfolio selector (syncs with panel) %>
-      <div style="margin-bottom: 1rem;">
-        <label style="display: block; color: #929AA5; font-size: 0.72rem; font-weight: 700;
-                      text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;">
-          Portfolio
-        </label>
-        <% if @portfolios.any? %>
-          <select id="trade-portfolio-select" name="portfolio_id"
-                  class="bnb-input" onchange="onPortfolioChange()"
-                  style="cursor: pointer; background: #1a1d2e; color: #EAECEF;">
-            <% @portfolios.each do |p| %>
-              <option value="<%= p.id %>"><%= p.league.name %> — $<%= number_with_precision(p.cash_balance, precision: 2, delimiter: ",") %> cash</option>
-            <% end %>
-          </select>
-        <% else %>
-          <div style="background: rgba(246,70,93,0.1); border: 1px solid rgba(246,70,93,0.25);
-                      border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.82rem; color: #F6465D;">
-            You have no portfolios. <%= link_to "Join a league", leagues_path,
-                style: "color: #14B8A6; text-decoration: underline;" %> first.
-          </div>
-          <select id="trade-portfolio-select" name="portfolio_id" style="display: none;"></select>
-        <% end %>
-      </div>
-
-      <%# Order type selector %>
-      <div style="margin-bottom: 1rem;">
-        <label style="display: block; color: #929AA5; font-size: 0.72rem; font-weight: 700;
-                      text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;">
-          Order Type
-        </label>
-        <div style="display: flex; gap: 0.3rem;">
-          <% [["market", "Market"], ["limit", "Limit"], ["stop", "Stop"]].each do |val, lbl| %>
-            <button type="button" class="order-type-btn" data-order-type="<%= val %>"
-                    onclick="selectOrderType('<%= val %>', this)"
-                    style="flex: 1; padding: 0.45rem 0; font-size: 0.75rem; font-weight: 700;
-                           border-radius: 4px; cursor: pointer; transition: all 0.15s;
-                           background: <%= val == 'market' ? 'rgba(20,184,166,0.15)' : 'rgba(255,255,255,0.06)' %>;
-                           color: <%= val == 'market' ? '#14B8A6' : '#929AA5' %>;
-                           border: 1px solid <%= val == 'market' ? 'rgba(20,184,166,0.4)' : 'rgba(255,255,255,0.1)' %>;">
-              <%= lbl %>
-            </button>
-          <% end %>
-        </div>
-        <input type="hidden" id="trade-order-type" name="trade[order_type]" value="market">
-      </div>
-
-      <%# Holdings info row %>
-      <div id="trade-holdings-info"
-           style="background: rgba(255,255,255,0.04); border-radius: 8px; padding: 0.6rem 1rem;
-                  margin-bottom: 1rem; font-size: 0.8rem; color: #929AA5; display: none;">
-        <span id="holdings-qty-label"></span>
-        <span id="holdings-avg-label" style="margin-left: 0.75rem;"></span>
-      </div>
-
-      <%# Market price (shown for market orders) %>
-      <div id="trade-price-row" style="margin-bottom: 1rem;">
-        <label style="display: block; color: #929AA5; font-size: 0.72rem; font-weight: 700;
-                      text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;">
-          Price (USD)
-        </label>
-        <div style="background: rgba(20,184,166,0.08); border: 1px solid rgba(20,184,166,0.2);
-                    border-radius: 6px; padding: 0.55rem 0.75rem; font-weight: 700;
-                    color: #14B8A6; font-size: 0.95rem;" id="trade-price-display">—</div>
-      </div>
-
-      <%# Limit price input (shown for limit orders) %>
-      <div id="limit-price-row" style="display: none; margin-bottom: 1rem;">
-        <label style="display: block; color: #929AA5; font-size: 0.72rem; font-weight: 700;
-                      text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;">
-          Limit Price (USD)
-        </label>
-        <input type="number" id="trade-limit-price" name="trade[limit_price]"
-               step="0.01" min="0.01" class="bnb-input" placeholder="0.00"
-               oninput="updateTotal()">
-      </div>
-
-      <%# Stop price input (shown for stop orders) %>
-      <div id="stop-price-row" style="display: none; margin-bottom: 1rem;">
-        <label style="display: block; color: #929AA5; font-size: 0.72rem; font-weight: 700;
-                      text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;">
-          Stop Price (USD)
-        </label>
-        <input type="number" id="trade-stop-price" name="trade[stop_price]"
-               step="0.01" min="0.01" class="bnb-input" placeholder="0.00"
-               oninput="updateTotal()">
-      </div>
-
-      <%# Quantity %>
-      <div style="margin-bottom: 0.6rem;">
-        <label style="display: block; color: #929AA5; font-size: 0.72rem; font-weight: 700;
-                      text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;">
-          Quantity (shares)
-        </label>
-        <input type="number" id="trade-qty-field" name="trade[quantity]"
-               step="1" min="1" required class="bnb-input" placeholder="0"
-               oninput="updateTotal()">
-      </div>
-
-      <%# Quick % preset buttons %>
-      <div style="display: flex; gap: 0.4rem; margin-bottom: 1rem;" id="trade-presets"></div>
-
-      <%# TP / SL %>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">
-        <div>
-          <label style="display: block; color: #2EBD85; font-size: 0.68rem; font-weight: 700;
-                        text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.3rem;">
-            Take Profit
-          </label>
-          <input type="number" id="trade-take-profit" name="trade[take_profit]"
-                 step="0.01" min="0" class="bnb-input" placeholder="optional"
-                 style="border-color: rgba(46,189,133,0.35);">
-        </div>
-        <div>
-          <label style="display: block; color: #F6465D; font-size: 0.68rem; font-weight: 700;
-                        text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.3rem;">
-            Stop Loss
-          </label>
-          <input type="number" id="trade-stop-loss" name="trade[stop_loss]"
-                 step="0.01" min="0" class="bnb-input" placeholder="optional"
-                 style="border-color: rgba(246,70,93,0.35);">
-        </div>
-      </div>
-
-      <div id="trade-cost-preview"
-           style="background: rgba(255,255,255,0.04); border-radius: 8px; padding: 0.75rem 1rem;
-                  margin-bottom: 1.25rem; font-size: 0.82rem; color: #929AA5; display: none;">
-        Total: <span id="trade-total" style="color: #EAECEF; font-weight: 700;"></span>
-      </div>
-
-      <% if @portfolios.any? %>
-      <button id="trade-submit-btn" type="submit"
-              style="width: 100%; padding: 0.85rem; font-size: 0.95rem; font-weight: 700;
-                     border: none; border-radius: 6px; cursor: pointer; transition: background 0.2s;">
-        Confirm
-      </button>
-      <% end %>
-    <% end %>
-
-  </div>
-</div>
+<%= render "stocks/trade_modal" %>
 
 <%# ══════════════════════════════════════════════════════════════ %>
 <%# ── Embedded data for JS ── %>
@@ -1317,7 +882,23 @@
     _cursorPrice = historical[historical.length - 1].close;
     updatePriceDisplay(_cursorPrice);
 
+    // Remove ALL chart overlays before loading new data to prevent stale renders.
+    _overlayStack.forEach(id => { try { chart.removeOverlay(id); } catch (_) {} });
+    _overlayStack.length = 0;
+    _orderOverlays.forEach(id => { try { chart.removeOverlay(id); } catch (_) {} });
+    _orderOverlays.length = 0;
+    _tradeLines.forEach(g => {
+      [g.entryId, g.tpId, g.slId].forEach(id => { if (id) try { chart.removeOverlay(id); } catch (_) {} });
+    });
+    _tradeLines.length = 0;
+    _drawingOverlayId = null;
+    _selectedOverlayId = null;
+
     chart.applyNewData(historical);
+
+    // Load saved drawings from localStorage on first load
+    if (_drawingStore.length === 0) _loadDrawings();
+    restoreDrawings();
     updatePriceRange(historical);
     renderOrderOverlays();
     drawPositionLines();
@@ -1340,18 +921,112 @@
   };
 
   /* ════════════════════════════════════════════════════════════════
-     Drawing tools + Undo
+     Drawing tools + Undo + Select & Delete
   ════════════════════════════════════════════════════════════════ */
-  window.setDrawing = function (type, btn) {
+  let _selectedOverlayId = null;
+  let _drawingOverlayId  = null;
+
+  // Authoritative store: {id, name, points:[{timestamp,value}]}
+  const _drawingStore = [];
+  const _drawingStorageKey = 'chart_drawings_' + STOCK_ID;
+
+  function _saveDrawings() {
+    const data = _drawingStore.map(d => ({ name: d.name, points: d.points }));
+    try { localStorage.setItem(_drawingStorageKey, JSON.stringify(data)); } catch (_) {}
+  }
+
+  function _loadDrawings() {
+    try {
+      const raw = localStorage.getItem(_drawingStorageKey);
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      if (!Array.isArray(data)) return;
+      _drawingStore.length = 0;
+      data.forEach(d => {
+        if (d.name && Array.isArray(d.points)) {
+          _drawingStore.push({ id: null, name: d.name, points: d.points });
+        }
+      });
+    } catch (_) {}
+  }
+
+  function resetToolbar() {
     document.querySelectorAll('#drawing-toolbar button[id^="draw-btn-"]').forEach(b => {
       b.style.background  = 'rgba(255,255,255,0.05)';
       b.style.borderColor = 'rgba(255,255,255,0.1)';
       b.style.color       = '#929AA5';
     });
+  }
+
+  function removeFromStore(overlayId) {
+    const idx = _drawingStore.findIndex(d => d.id === overlayId);
+    if (idx !== -1) _drawingStore.splice(idx, 1);
+  }
+
+  function cancelDrawing() {
+    if (_drawingOverlayId && chart) {
+      try { chart.removeOverlay(_drawingOverlayId); } catch (_) {}
+      const idx = _overlayStack.indexOf(_drawingOverlayId);
+      if (idx !== -1) _overlayStack.splice(idx, 1);
+      removeFromStore(_drawingOverlayId);
+      _drawingOverlayId = null;
+      _saveDrawings();
+    }
+    resetToolbar();
+  }
+
+  function resolvePoints(overlayPoints) {
+    const dataList = chart ? chart.getDataList() : [];
+    return overlayPoints.map(p => {
+      let ts = p.timestamp;
+      if (p.dataIndex != null && dataList[p.dataIndex]) {
+        // Point within data range — use exact timestamp
+        ts = dataList[p.dataIndex].timestamp;
+      } else if (p.dataIndex != null && dataList.length > 0) {
+        // Point beyond data range (on a GBM candle) — estimate timestamp
+        const last = dataList[dataList.length - 1];
+        const intervalMs = _currentInterval * 60 * 1000;
+        ts = last.timestamp + (p.dataIndex - (dataList.length - 1)) * intervalMs;
+      }
+      return { timestamp: ts, value: p.value };
+    });
+  }
+
+  function overlayCallbacks(overlayName) {
+    return {
+      onDrawEnd: (event) => {
+        const o = event.overlay;
+        const points = resolvePoints(o.points);
+        const existing = _drawingStore.find(d => d.id === o.id);
+        if (existing) {
+          existing.points = points;
+        } else {
+          _drawingStore.push({ id: o.id, name: overlayName, points: points });
+        }
+        _drawingOverlayId = null;
+        resetToolbar();
+        _saveDrawings();
+      },
+      onPressedMoveEnd: (event) => {
+        const o = event.overlay;
+        const existing = _drawingStore.find(d => d.id === o.id);
+        if (existing) { existing.points = resolvePoints(o.points); _saveDrawings(); }
+      },
+      onSelected: (event) => { _selectedOverlayId = event.overlay.id; },
+      onDeselected: () => { _selectedOverlayId = null; }
+    };
+  }
+
+  window.setDrawing = function (type, btn) {
+    cancelDrawing();
     if (!chart) return;
-    if (!type) return; // cursor mode — do nothing
-    const id = chart.createOverlay(type);
-    if (id) _overlayStack.push(id);
+    if (!type) return;
+
+    const id = chart.createOverlay(Object.assign({ name: type }, overlayCallbacks(type)));
+    if (id) {
+      _overlayStack.push(id);
+      _drawingOverlayId = id;
+    }
     if (btn) {
       btn.style.background  = 'rgba(20,184,166,0.15)';
       btn.style.borderColor = 'rgba(20,184,166,0.4)';
@@ -1359,11 +1034,67 @@
     }
   };
 
+  window.clearAllDrawings = function () {
+    if (!chart) return;
+    _overlayStack.forEach(id => { try { chart.removeOverlay(id); } catch (_) {} });
+    _overlayStack.length = 0;
+    _drawingStore.length = 0;
+    _drawingOverlayId = null;
+    _selectedOverlayId = null;
+    resetToolbar();
+    _saveDrawings();
+  };
+
+  function restoreDrawings() {
+    if (!chart || _drawingStore.length === 0) return;
+    const toRestore = _drawingStore.map(d => ({ name: d.name, points: d.points.map(p => ({ ...p })) }));
+    _drawingStore.length = 0;
+    _overlayStack.length = 0;
+    toRestore.forEach(s => {
+      const overlayPoints = s.points.map(p => ({ timestamp: p.timestamp, value: p.value }));
+      const id = chart.createOverlay(Object.assign(
+        { name: s.name, points: overlayPoints },
+        overlayCallbacks(s.name)
+      ));
+      if (id) {
+        _overlayStack.push(id);
+        _drawingStore.push({ id: id, name: s.name, points: s.points });
+      }
+    });
+  }
+
   document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+
+    // Escape — cancel current drawing and return to cursor
+    if (e.key === 'Escape') {
+      cancelDrawing();
+      _selectedOverlayId = null;
+      return;
+    }
+
+    // Ctrl/Cmd+Z — undo last drawing
     if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
       e.preventDefault();
       if (!chart || _overlayStack.length === 0) return;
-      chart.removeOverlay(_overlayStack.pop());
+      const removed = _overlayStack.pop();
+      try { chart.removeOverlay(removed); } catch (_) {}
+      removeFromStore(removed);
+      if (_selectedOverlayId === removed) _selectedOverlayId = null;
+      if (_drawingOverlayId === removed) _drawingOverlayId = null;
+      _saveDrawings();
+    }
+
+    // Backspace or Delete — remove selected drawing
+    if (e.key === 'Backspace' || e.key === 'Delete') {
+      if (!_selectedOverlayId || !chart) return;
+      e.preventDefault();
+      try { chart.removeOverlay(_selectedOverlayId); } catch (_) {}
+      removeFromStore(_selectedOverlayId);
+      const idx = _overlayStack.indexOf(_selectedOverlayId);
+      if (idx !== -1) _overlayStack.splice(idx, 1);
+      _selectedOverlayId = null;
+      _saveDrawings();
     }
   });
 
@@ -1851,9 +1582,47 @@
   /* ════════════════════════════════════════════════════════════════
      Chart initialisation
   ════════════════════════════════════════════════════════════════ */
+  /* ════════════════════════════════════════════════════════════════
+     Custom rectangle overlay (not built-in in KLineChart v9)
+  ════════════════════════════════════════════════════════════════ */
+  function registerCustomOverlays() {
+    if (typeof klinecharts === 'undefined') return;
+    klinecharts.registerOverlay({
+      name: 'drawRect',
+      totalStep: 3,
+      needDefaultPointFigure: true,
+      needDefaultXAxisMark: false,
+      needDefaultYAxisMark: false,
+      createPointFigures: function (params) {
+        var overlay = params.overlay;
+        var coordinates = params.coordinates;
+        if (coordinates.length < 2) return [];
+        var p1 = coordinates[0];
+        var p2 = coordinates[1];
+        var x = Math.min(p1.x, p2.x);
+        var y = Math.min(p1.y, p2.y);
+        var w = Math.abs(p2.x - p1.x);
+        var h = Math.abs(p2.y - p1.y);
+        return [
+          {
+            type: 'rect',
+            attrs: { x: x, y: y, width: w, height: h },
+            styles: {
+              style: 'stroke_fill',
+              color: 'rgba(20,184,166,0.1)',
+              borderColor: '#14B8A6',
+              borderSize: 1
+            }
+          }
+        ];
+      }
+    });
+  }
+
   function initChart() {
     const container = document.getElementById('chart-container');
     if (!container || typeof klinecharts === 'undefined') return;
+    registerCustomOverlays();
 
     if (window.chart) {
       try { klinecharts.dispose(container); } catch (_) {}

@@ -14,17 +14,11 @@ Feature: Site Navigation
     When I visit the leagues page
     Then the logo should link to the home page
 
-  Scenario: Friend panel button is visible when signed in
+  Scenario: Friends link is visible when signed in
     Given I am signed in as "alice@cuhk.edu.hk"
     When I visit the leagues page
-    Then I should see the friend panel button
+    Then I should see a "Friends" link in the navigation bar
 
-  Scenario: Friend panel button is not visible when signed out
+  Scenario: Friends link is not visible when signed out
     When I visit the home page without signing in
-    Then I should not see the friend panel button
-
-  Scenario: Friend panel shows accepted friends
-    Given I am signed in as "alice@cuhk.edu.hk"
-    And "bob@cuhk.edu.hk" is my accepted friend
-    When I visit the leagues page
-    Then the friend panel should contain "bob@cuhk.edu.hk"
+    Then I should not see a "Friends" link in the navigation bar

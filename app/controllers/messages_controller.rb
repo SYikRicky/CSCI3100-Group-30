@@ -15,7 +15,16 @@ class MessagesController < ApplicationController
         partial: "messages/message",
         locals: { message: @message }
       )
-      redirect_to chatrooms_path(friend_id: friend.id)
+      Turbo::StreamsChannel.broadcast_append_to(
+        stream,
+        target: "chat-widget-messages",
+        partial: "messages/widget_message",
+        locals: { message: @message }
+      )
+      respond_to do |format|
+        format.turbo_stream { head :no_content }
+        format.html { redirect_to chatrooms_path(friend_id: friend.id) }
+      end
     else
       redirect_to chatrooms_path(friend_id: friend.id), alert: @message.errors.full_messages.to_sentence
     end

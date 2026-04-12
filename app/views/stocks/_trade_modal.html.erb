@@ -1,0 +1,166 @@
+<%# ══════════════════════════════════════════════════════════════ %>
+<%# ── Trade Modal ── %>
+<%# ══════════════════════════════════════════════════════════════ %>
+<div id="trade-modal"
+     style="display: none; position: fixed; inset: 0; z-index: 200;
+            background: rgba(0,0,0,0.75); align-items: center; justify-content: center; padding: 1.5rem;"
+     onclick="if(event.target===this) closeTrade()">
+  <div style="background: #12141e; border: 1px solid rgba(255,255,255,0.1);
+              border-radius: 16px; padding: 2rem; width: 100%; max-width: 420px; position: relative;">
+
+    <button onclick="closeTrade()"
+            style="position: absolute; top: 1rem; right: 1rem; background: none; border: none;
+                   color: #929AA5; font-size: 1.4rem; cursor: pointer; line-height: 1; padding: 0;"
+            onmouseover="this.style.color='#EAECEF'" onmouseout="this.style.color='#929AA5'">&times;</button>
+
+    <h2 id="trade-title" class="tw-font-custom"
+        style="color: #EAECEF; font-size: 1.2rem; letter-spacing: 0.08em;
+               text-transform: uppercase; margin: 0 0 1.5rem;"></h2>
+
+    <div id="trade-msg" style="display: none; border-radius: 8px; padding: 0.7rem 1rem;
+                               margin-bottom: 1rem; font-size: 0.85rem; text-align: center;"></div>
+
+    <%= form_with url: "#", id: "trade-form", data: { turbo: false } do |f| %>
+      <input type="hidden" name="trade[ticker]" value="<%= @stock.ticker %>">
+      <input type="hidden" id="trade-action-field" name="trade[action]" value="buy">
+
+      <%# Portfolio selector (syncs with panel) %>
+      <div style="margin-bottom: 1rem;">
+        <label style="display: block; color: #929AA5; font-size: 0.72rem; font-weight: 700;
+                      text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;">
+          Portfolio
+        </label>
+        <% if @portfolios.any? %>
+          <select id="trade-portfolio-select" name="portfolio_id"
+                  class="bnb-input" onchange="onPortfolioChange()"
+                  style="cursor: pointer; background: #1a1d2e; color: #EAECEF;">
+            <% @portfolios.each do |p| %>
+              <option value="<%= p.id %>"><%= p.league.name %> — $<%= number_with_precision(p.cash_balance, precision: 2, delimiter: ",") %> cash</option>
+            <% end %>
+          </select>
+        <% else %>
+          <div style="background: rgba(246,70,93,0.1); border: 1px solid rgba(246,70,93,0.25);
+                      border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.82rem; color: #F6465D;">
+            You have no portfolios. <%= link_to "Join a league", leagues_path,
+                style: "color: #14B8A6; text-decoration: underline;" %> first.
+          </div>
+          <select id="trade-portfolio-select" name="portfolio_id" style="display: none;"></select>
+        <% end %>
+      </div>
+
+      <%# Order type selector %>
+      <div style="margin-bottom: 1rem;">
+        <label style="display: block; color: #929AA5; font-size: 0.72rem; font-weight: 700;
+                      text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;">
+          Order Type
+        </label>
+        <div style="display: flex; gap: 0.3rem;">
+          <% [["market", "Market"], ["limit", "Limit"], ["stop", "Stop"]].each do |val, lbl| %>
+            <button type="button" class="order-type-btn" data-order-type="<%= val %>"
+                    onclick="selectOrderType('<%= val %>', this)"
+                    style="flex: 1; padding: 0.45rem 0; font-size: 0.75rem; font-weight: 700;
+                           border-radius: 4px; cursor: pointer; transition: all 0.15s;
+                           background: <%= val == 'market' ? 'rgba(20,184,166,0.15)' : 'rgba(255,255,255,0.06)' %>;
+                           color: <%= val == 'market' ? '#14B8A6' : '#929AA5' %>;
+                           border: 1px solid <%= val == 'market' ? 'rgba(20,184,166,0.4)' : 'rgba(255,255,255,0.1)' %>;">
+              <%= lbl %>
+            </button>
+          <% end %>
+        </div>
+        <input type="hidden" id="trade-order-type" name="trade[order_type]" value="market">
+      </div>
+
+      <%# Holdings info row %>
+      <div id="trade-holdings-info"
+           style="background: rgba(255,255,255,0.04); border-radius: 8px; padding: 0.6rem 1rem;
+                  margin-bottom: 1rem; font-size: 0.8rem; color: #929AA5; display: none;">
+        <span id="holdings-qty-label"></span>
+        <span id="holdings-avg-label" style="margin-left: 0.75rem;"></span>
+      </div>
+
+      <%# Market price (shown for market orders) %>
+      <div id="trade-price-row" style="margin-bottom: 1rem;">
+        <label style="display: block; color: #929AA5; font-size: 0.72rem; font-weight: 700;
+                      text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;">
+          Price (USD)
+        </label>
+        <div style="background: rgba(20,184,166,0.08); border: 1px solid rgba(20,184,166,0.2);
+                    border-radius: 6px; padding: 0.55rem 0.75rem; font-weight: 700;
+                    color: #14B8A6; font-size: 0.95rem;" id="trade-price-display">—</div>
+      </div>
+
+      <%# Limit price input (shown for limit orders) %>
+      <div id="limit-price-row" style="display: none; margin-bottom: 1rem;">
+        <label style="display: block; color: #929AA5; font-size: 0.72rem; font-weight: 700;
+                      text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;">
+          Limit Price (USD)
+        </label>
+        <input type="number" id="trade-limit-price" name="trade[limit_price]"
+               step="0.01" min="0.01" class="bnb-input" placeholder="0.00"
+               oninput="updateTotal()">
+      </div>
+
+      <%# Stop price input (shown for stop orders) %>
+      <div id="stop-price-row" style="display: none; margin-bottom: 1rem;">
+        <label style="display: block; color: #929AA5; font-size: 0.72rem; font-weight: 700;
+                      text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;">
+          Stop Price (USD)
+        </label>
+        <input type="number" id="trade-stop-price" name="trade[stop_price]"
+               step="0.01" min="0.01" class="bnb-input" placeholder="0.00"
+               oninput="updateTotal()">
+      </div>
+
+      <%# Quantity %>
+      <div style="margin-bottom: 0.6rem;">
+        <label style="display: block; color: #929AA5; font-size: 0.72rem; font-weight: 700;
+                      text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;">
+          Quantity (shares)
+        </label>
+        <input type="number" id="trade-qty-field" name="trade[quantity]"
+               step="1" min="1" required class="bnb-input" placeholder="0"
+               oninput="updateTotal()">
+      </div>
+
+      <%# Quick % preset buttons %>
+      <div style="display: flex; gap: 0.4rem; margin-bottom: 1rem;" id="trade-presets"></div>
+
+      <%# TP / SL %>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">
+        <div>
+          <label style="display: block; color: #2EBD85; font-size: 0.68rem; font-weight: 700;
+                        text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.3rem;">
+            Take Profit
+          </label>
+          <input type="number" id="trade-take-profit" name="trade[take_profit]"
+                 step="0.01" min="0" class="bnb-input" placeholder="optional"
+                 style="border-color: rgba(46,189,133,0.35);">
+        </div>
+        <div>
+          <label style="display: block; color: #F6465D; font-size: 0.68rem; font-weight: 700;
+                        text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.3rem;">
+            Stop Loss
+          </label>
+          <input type="number" id="trade-stop-loss" name="trade[stop_loss]"
+                 step="0.01" min="0" class="bnb-input" placeholder="optional"
+                 style="border-color: rgba(246,70,93,0.35);">
+        </div>
+      </div>
+
+      <div id="trade-cost-preview"
+           style="background: rgba(255,255,255,0.04); border-radius: 8px; padding: 0.75rem 1rem;
+                  margin-bottom: 1.25rem; font-size: 0.82rem; color: #929AA5; display: none;">
+        Total: <span id="trade-total" style="color: #EAECEF; font-weight: 700;"></span>
+      </div>
+
+      <% if @portfolios.any? %>
+      <button id="trade-submit-btn" type="submit"
+              style="width: 100%; padding: 0.85rem; font-size: 0.95rem; font-weight: 700;
+                     border: none; border-radius: 6px; cursor: pointer; transition: background 0.2s;">
+        Confirm
+      </button>
+      <% end %>
+    <% end %>
+
+  </div>
+</div>

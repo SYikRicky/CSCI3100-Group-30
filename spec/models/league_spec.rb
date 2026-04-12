@@ -25,6 +25,16 @@ RSpec.describe League, type: :model do
     end
   end
 
+  describe "dependent destroy" do
+    it "destroys associated portfolios when destroyed" do
+      league = FactoryBot.create(:league)
+      user = FactoryBot.create(:user)
+      FactoryBot.create(:portfolio, league: league, user: user)
+      expect { league.destroy! }.not_to raise_error
+      expect(Portfolio.where(league_id: league.id)).to be_empty
+    end
+  end
+
   describe "validation" do
     it "is invalid without a owner" do
       league_without_owner = FactoryBot.build(:league, owner: nil)

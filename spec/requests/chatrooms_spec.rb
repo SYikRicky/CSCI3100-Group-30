@@ -69,10 +69,10 @@ RSpec.describe "Chatrooms and messages", type: :request do
       expect(response.body).to include("Line two")
     end
 
-    it "broadcasts a turbo stream append to the DM channel" do
+    it "broadcasts turbo stream appends to the DM channel" do
       expect {
         post chatroom_messages_path(chatroom_id: bob.id), params: { message: { content: "Realtime" } }
-      }.to have_broadcasted_to(Message.dm_stream_name(alice, bob)).from_channel(Turbo::StreamsChannel)
+      }.to have_broadcasted_to(Message.dm_stream_name(alice, bob)).from_channel(Turbo::StreamsChannel).exactly(2).times
     end
 
     it "rejects empty content" do
