@@ -81,7 +81,7 @@ RSpec.describe AdvancePriceJob, type: :job do
     it "returns defaults when fewer than 2 snapshots" do
       snap = create(:price_snapshot, stock: stock)
 
-      mu, sigma = job.send(:calibrate_gbm, [snap])
+      mu, sigma = job.send(:calibrate_gbm, [ snap ])
 
       expect(mu).to eq(0.0)
       expect(sigma).to eq(0.012)
