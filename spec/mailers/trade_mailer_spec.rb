@@ -32,7 +32,7 @@ RSpec.describe TradeMailer, type: :mailer do
 
     it "greets the user by name" do
       # changed to greet by random names
-      expect(mail.body.encoded).to include("Hello #{user.name}")
+      expect(mail.body.encoded).to include("Hello #{user.display_name}")
     end
   end
 
