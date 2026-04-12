@@ -156,8 +156,10 @@ export default class extends Controller {
     const csrfToken = document.querySelector("meta[name='csrf-token']")?.content
     fetch(`${this.markReadUrlValue}?friend_id=${friendId}`, {
       method: "PATCH",
-      headers: { "X-CSRF-Token": csrfToken }
+      headers: { "X-CSRF-Token": csrfToken, "Accept": "application/json" }
     })
+      .then(r => r.json())
+      .then(data => this._updateBadge(data.unread_count))
   }
 
   _scrollToBottom() {

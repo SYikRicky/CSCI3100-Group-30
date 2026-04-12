@@ -37,7 +37,8 @@ module ChatWidget
 
       current_user.received_messages.where(sender: friend, read_at: nil)
                   .update_all(read_at: Time.current)
-      head :no_content
+      remaining = current_user.received_messages.where(read_at: nil).count
+      render json: { unread_count: remaining }
     end
   end
 end
