@@ -1,0 +1,11 @@
+<div id="<%= dom_id(message) %>"
+     class="chat-message"
+     data-testid="chat-message"
+     style="padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.06);
+            font-size: 0.875rem;">
+  <span style="color: #14B8A6; font-weight: 600;"><%= message.sender.display_name %></span>
+  <span style="color: #929AA5; font-size: 0.75rem; margin-left: 0.5rem;">
+    <%= message.created_at.strftime("%Y-%m-%d %H:%M") %>
+  </span>
+  <p style="color: #EAECEF; margin: 0.35rem 0 0;"><%= message.content %></p>
+</div>
