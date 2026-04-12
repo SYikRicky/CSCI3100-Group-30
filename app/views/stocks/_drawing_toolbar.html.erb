@@ -1,0 +1,113 @@
+<%# ── Drawing toolbar (left side) ── %>
+<div id="drawing-toolbar"
+     style="position: fixed; top: 130px; left: 0.6rem; z-index: 10;
+            display: flex; flex-direction: column; gap: 0.3rem;">
+  <%# cursor %>
+  <button id="draw-btn-cursor"
+          onclick="setDrawing(null, this)"
+          title="Cursor / Select"
+          style="width: 32px; height: 32px; border-radius: 6px;
+                 background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+                 color: #929AA5; cursor: pointer;
+                 display: flex; align-items: center; justify-content: center;
+                 transition: all 0.15s;">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M3 1L3 12L6.5 8.5L10 14L12 13L8.5 7L13 7L3 1Z" fill="currentColor"/>
+    </svg>
+  </button>
+  <%# trend line (segment) %>
+  <button id="draw-btn-trend"
+          onclick="setDrawing('segment', this)"
+          title="Trend Line"
+          style="width: 32px; height: 32px; border-radius: 6px;
+                 background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+                 color: #929AA5; cursor: pointer;
+                 display: flex; align-items: center; justify-content: center;
+                 transition: all 0.15s;">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <line x1="2" y1="14" x2="14" y2="2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      <circle cx="2" cy="14" r="1.5" fill="currentColor"/>
+      <circle cx="14" cy="2" r="1.5" fill="currentColor"/>
+    </svg>
+  </button>
+  <%# horizontal line %>
+  <button id="draw-btn-hline"
+          onclick="setDrawing('horizontalStraightLine', this)"
+          title="Horizontal Line"
+          style="width: 32px; height: 32px; border-radius: 6px;
+                 background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+                 color: #929AA5; cursor: pointer;
+                 display: flex; align-items: center; justify-content: center;
+                 transition: all 0.15s;">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <line x1="1" y1="8" x2="15" y2="8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      <line x1="1" y1="8" x2="4" y2="5.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+      <line x1="1" y1="8" x2="4" y2="10.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+      <line x1="15" y1="8" x2="12" y2="5.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+      <line x1="15" y1="8" x2="12" y2="10.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+    </svg>
+  </button>
+  <%# vertical line %>
+  <button id="draw-btn-vline"
+          onclick="setDrawing('verticalStraightLine', this)"
+          title="Vertical Line"
+          style="width: 32px; height: 32px; border-radius: 6px;
+                 background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+                 color: #929AA5; cursor: pointer;
+                 display: flex; align-items: center; justify-content: center;
+                 transition: all 0.15s;">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <line x1="8" y1="1" x2="8" y2="15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      <line x1="8" y1="1" x2="5.5" y2="4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+      <line x1="8" y1="1" x2="10.5" y2="4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+      <line x1="8" y1="15" x2="5.5" y2="12" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+      <line x1="8" y1="15" x2="10.5" y2="12" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+    </svg>
+  </button>
+  <%# fibonacci %>
+  <button id="draw-btn-fib"
+          onclick="setDrawing('fibonacciLine', this)"
+          title="Fibonacci Retracement"
+          style="width: 32px; height: 32px; border-radius: 6px;
+                 background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+                 color: #929AA5; cursor: pointer;
+                 display: flex; align-items: center; justify-content: center;
+                 transition: all 0.15s;">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <line x1="1" y1="2" x2="15" y2="2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+      <line x1="1" y1="6" x2="15" y2="6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-dasharray="3 2"/>
+      <line x1="1" y1="10" x2="15" y2="10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-dasharray="3 2"/>
+      <line x1="1" y1="14" x2="15" y2="14" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+    </svg>
+  </button>
+  <%# rectangle %>
+  <button id="draw-btn-rect"
+          onclick="setDrawing('drawRect', this)"
+          title="Rectangle"
+          style="width: 32px; height: 32px; border-radius: 6px;
+                 background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+                 color: #929AA5; cursor: pointer;
+                 display: flex; align-items: center; justify-content: center;
+                 transition: all 0.15s;">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="2" y="3" width="12" height="10" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
+      <rect x="1" y="2" width="3" height="3" rx="0.5" fill="currentColor" opacity="0.6"/>
+      <rect x="12" y="2" width="3" height="3" rx="0.5" fill="currentColor" opacity="0.6"/>
+      <rect x="1" y="11" width="3" height="3" rx="0.5" fill="currentColor" opacity="0.6"/>
+      <rect x="12" y="11" width="3" height="3" rx="0.5" fill="currentColor" opacity="0.6"/>
+    </svg>
+  </button>
+  <div style="width: 32px; height: 1px; background: rgba(255,255,255,0.1); margin: 0.1rem 0;"></div>
+  <%# clear all %>
+  <button onclick="if(typeof clearAllDrawings==='function') clearAllDrawings();"
+          title="Clear drawings (keeps order lines)"
+          style="width: 32px; height: 32px; border-radius: 6px;
+                 background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+                 color: #F6465D; cursor: pointer;
+                 display: flex; align-items: center; justify-content: center;
+                 transition: all 0.15s;">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M1 13L13 1M1 1L13 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    </svg>
+  </button>
+</div>

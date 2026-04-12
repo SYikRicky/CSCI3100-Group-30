@@ -39,5 +39,10 @@
 
 /node_modules
 
+# Ignore test coverage output.
+/coverage
+
 /.claude
 .claude/settings.local.json
+
+CLAUDE.md

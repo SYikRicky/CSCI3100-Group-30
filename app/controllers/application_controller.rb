@@ -26,5 +26,7 @@ class ApplicationController < ActionController::Base
   def load_notifications
     return unless user_signed_in?
     @notifications = current_user.notifications.recent
+    @unread_notifications_count = current_user.notifications.unread.count
+    @unread_messages_count = current_user.received_messages.where(read_at: nil).count
   end
 end

@@ -1,0 +1,36 @@
+<%# ── Right-click context menu ── %>
+<div id="chart-context-menu"
+     style="display: none; position: fixed; z-index: 500; min-width: 180px;
+            background: #1a1d2e; border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 8px; padding: 0.4rem 0; box-shadow: 0 8px 32px rgba(0,0,0,0.6);">
+  <div style="padding: 0.4rem 1rem; color: #929AA5; font-size: 0.68rem;
+              font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+              border-bottom: 1px solid rgba(255,255,255,0.07); margin-bottom: 0.25rem;">
+    Price: $<span id="ctx-price-label">0.00</span>
+  </div>
+  <button onclick="ctxPlaceOrder('buy','market')"
+          style="width:100%;padding:0.45rem 1rem;text-align:left;background:none;border:none;
+                 color:#2EBD85;font-size:0.8rem;font-weight:600;cursor:pointer;"
+          onmouseover="this.style.background='rgba(46,189,133,0.1)'" onmouseout="this.style.background='none'">▲ Market Buy</button>
+  <button onclick="ctxPlaceOrder('sell','market')"
+          style="width:100%;padding:0.45rem 1rem;text-align:left;background:none;border:none;
+                 color:#F6465D;font-size:0.8rem;font-weight:600;cursor:pointer;"
+          onmouseover="this.style.background='rgba(246,70,93,0.1)'" onmouseout="this.style.background='none'">▼ Market Sell</button>
+  <div style="height:1px;background:rgba(255,255,255,0.07);margin:0.25rem 0;"></div>
+  <button onclick="ctxPlaceOrder('buy','limit')"
+          style="width:100%;padding:0.45rem 1rem;text-align:left;background:none;border:none;
+                 color:#EAECEF;font-size:0.8rem;cursor:pointer;"
+          onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='none'">Limit Buy @ $<span class="ctx-p">0.00</span></button>
+  <button onclick="ctxPlaceOrder('sell','limit')"
+          style="width:100%;padding:0.45rem 1rem;text-align:left;background:none;border:none;
+                 color:#EAECEF;font-size:0.8rem;cursor:pointer;"
+          onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='none'">Limit Sell @ $<span class="ctx-p">0.00</span></button>
+  <button onclick="ctxPlaceOrder('buy','stop')"
+          style="width:100%;padding:0.45rem 1rem;text-align:left;background:none;border:none;
+                 color:#EAECEF;font-size:0.8rem;cursor:pointer;"
+          onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='none'">Stop Buy @ $<span class="ctx-p">0.00</span></button>
+  <button onclick="ctxPlaceOrder('sell','stop')"
+          style="width:100%;padding:0.45rem 1rem;text-align:left;background:none;border:none;
+                 color:#EAECEF;font-size:0.8rem;cursor:pointer;"
+          onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='none'">Stop Sell @ $<span class="ctx-p">0.00</span></button>
+</div>

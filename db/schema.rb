@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_08_173147) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_12_044912) do
   create_table "friendships", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.integer "friend_id", null: false
@@ -57,6 +57,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_08_173147) do
     t.datetime "updated_at", null: false
     t.index ["owner_id"], name: "index_leagues_on_owner_id"
   end
+
+  create_table "messages", force: :cascade do |t|
+    t.text "content", null: false
+    t.datetime "created_at", null: false
+    t.datetime "read_at"
+    t.integer "receiver_id", null: false
+    t.integer "sender_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["receiver_id"], name: "index_messages_on_receiver_id"
+    t.index ["sender_id", "receiver_id", "created_at"], name: "index_messages_on_sender_id_and_receiver_id_and_created_at"
+    t.index ["sender_id"], name: "index_messages_on_sender_id"
+  end
+
 
   create_table "notifications", force: :cascade do |t|
     t.text "body", null: false

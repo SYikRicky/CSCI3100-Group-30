@@ -8,7 +8,6 @@ module.exports = {
   theme: { 
       extend: {
         fontFamily: {
-        // 'custom' 是你自己起的類名，'Noto Sans TC' 必須與 Google Fonts 提供的一致
         'custom': ['"Saira Stencil One"','sans-serif'],
         },
     } 
