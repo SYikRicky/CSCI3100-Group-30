@@ -4,6 +4,11 @@ class TradeMailer < ApplicationMailer
   #
   #   en.trade_mailer.confirmation.subject
   #
+
+  default from: "notifications@mock-fund-league.cuhk.edu.hk",
+    reply_to: "support@mock-fund-league.cuhk.edu.hk"
+
+
   def confirmation(trade)
     @trade = trade
     @user = trade.portfolio.user
@@ -22,6 +27,8 @@ class TradeMailer < ApplicationMailer
     @portfolio = portfolio
     @user = portfolio.user
     @league = portfolio.league
+
+    @trades = portfolio.trades.where("created_at > ?", 1.day.ago)
 
     # Don't change the subject
     mail to: @user.email, subject: "Daily Portfolio Summary - #{@league.name}"

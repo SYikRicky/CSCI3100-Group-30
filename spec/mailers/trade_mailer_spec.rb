@@ -14,6 +14,7 @@ RSpec.describe TradeMailer, type: :mailer do
       expect(mail.subject).to eq("Trade Confirmation - #{league.name}")
       expect(mail.to).to eq([ user.email ])
       expect(mail.from).to eq([ "notifications@mock-fund-league.cuhk.edu.hk" ])
+      expect(mail.reply_to).to eq([ "support@mock-fund-league.cuhk.edu.hk" ])
     end
 
     it "includes trade details and the mandatory disclaimer" do
@@ -21,6 +22,17 @@ RSpec.describe TradeMailer, type: :mailer do
         expect(mail.body.encoded).to include("10.0")
         expect(mail.body.encoded).to include("AAPL")
         expect(mail.body.encoded).to include("Virtual Trading Only")
+    end
+
+    it "uses 'sold' terminology for sell trades" do
+      sell_trade = create(:trade, portfolio: portfolio, stock: stock, action: "sell")
+      sell_mail = TradeMailer.confirmation(sell_trade)
+      expect(sell_mail.body.encoded).to include("sold")
+    end
+
+    it "greets the user by name" do
+      # changed to greet by random names
+      expect(mail.body.encoded).to include("Hello #{user.display_name}")
     end
   end
 
@@ -35,6 +47,11 @@ RSpec.describe TradeMailer, type: :mailer do
     it "lists portfolio value" do
       # Listing holdings and portfolio value
       expect(mail.body.encoded).to match("Your daily summary for #{league.name}")
+    end
+
+    it "notifies user if no trades were made today" do
+      # empty portfolios
+      expect(mail.body.encoded).to include("You didn't make any trades today")
     end
   end
 end
