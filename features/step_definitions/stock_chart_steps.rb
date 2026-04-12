@@ -12,8 +12,8 @@ Given(/^"([^"]+)" has (\d+) price snapshots at 1-minute intervals$/) do |ticker,
       stock:       stock,
       recorded_at: base + i.minutes,
       open:        open,
-      high:        [open, close].max + rand,
-      low:         [open, close].min - rand,
+      high:        [ open, close ].max + rand,
+      low:         [ open, close ].min - rand,
       close:       close,
       volume:      (1000 + rand(5000)).to_f
     )

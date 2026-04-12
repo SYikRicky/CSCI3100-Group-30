@@ -103,5 +103,4 @@ class TradingService
       stop_loss: stop_loss
     )
   end
-
 end

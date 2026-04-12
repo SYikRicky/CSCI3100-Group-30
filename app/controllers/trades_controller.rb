@@ -27,9 +27,9 @@ class TradesController < ApplicationController
 
     msg = if trade.pending?
             "#{trade.order_type.capitalize} order placed (#{trade_params[:action]} #{trade.quantity.to_i} × #{stock.ticker})"
-          else
+    else
             "Trade executed successfully (Virtual Trading Only)"
-          end
+    end
 
     respond_to do |format|
       format.html { flash[:notice] = msg; redirect_to portfolio_path(@portfolio) }

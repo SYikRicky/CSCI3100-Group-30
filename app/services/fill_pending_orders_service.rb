@@ -61,5 +61,4 @@ class FillPendingOrdersService
       PortfolioValuationService.new(portfolio: order.portfolio).call
     end
   end
-
 end

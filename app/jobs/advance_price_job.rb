@@ -41,13 +41,13 @@ class AdvancePriceJob < ApplicationJob
   def calibrate_gbm(snaps)
     closes  = snaps.map { |s| s.close.to_f }
     returns = closes.each_cons(2).map { |a, b| Math.log(b / a) rescue 0 }
-    return [0.0, 0.012] if returns.length < 2
+    return [ 0.0, 0.012 ] if returns.length < 2
 
     n        = returns.length
     mean     = returns.sum / n
-    variance = returns.map { |r| (r - mean)**2 }.sum / [n - 1, 1].max
-    sigma    = [Math.sqrt(variance), 0.003].max
-    [mean, sigma]
+    variance = returns.map { |r| (r - mean)**2 }.sum / [ n - 1, 1 ].max
+    sigma    = [ Math.sqrt(variance), 0.003 ].max
+    [ mean, sigma ]
   end
 
   def generate_candle(prev_close, mu, sigma)
@@ -61,8 +61,8 @@ class AdvancePriceJob < ApplicationJob
     TICKS.times do
       z     = randn
       close = close * Math.exp((mu - 0.5 * sigma * sigma) * dt + sigma * Math.sqrt(dt) * z)
-      high  = [high,  close].max
-      low   = [low,   close].min
+      high  = [ high,  close ].max
+      low   = [ low,   close ].min
       vol  += (z.abs * 800 + 200) * dt
     end
 
