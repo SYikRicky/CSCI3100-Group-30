@@ -74,7 +74,9 @@ RSpec.describe "ChatWidget", type: :request do
       patch chat_widget_mark_read_path, params: { friend_id: bob.id },
             headers: { "Accept" => "application/json" }
 
-      expect(response).to have_http_status(:no_content)
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+      expect(json["unread_count"]).to eq(0)
       expect(msg.reload.read_at).to be_present
     end
 

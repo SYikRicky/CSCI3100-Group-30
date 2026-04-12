@@ -41,6 +41,11 @@ export default class extends Controller {
       this._prependNotification(data)
     }
     if (data.type === "new_message") {
+      // Skip badge update if user is actively reading this sender's conversation
+      const chatWidget = document.querySelector("[data-controller='chat-widget']")
+      const activeFriendId = chatWidget?.dataset.activeFriendId
+      if (activeFriendId && String(data.sender_id) === activeFriendId) return
+
       this._updateChatBadge(data.unread_count)
     }
   }

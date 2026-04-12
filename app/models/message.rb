@@ -42,6 +42,7 @@ class Message < ApplicationRecord
     NotificationChannel.broadcast_to(receiver, {
       type: "new_message",
       unread_count: unread,
+      sender_id: sender_id,
       sender_name: sender.display_name
     })
   end

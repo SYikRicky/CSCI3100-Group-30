@@ -32,6 +32,7 @@ export default class extends Controller {
   back() {
     this._unsubscribe()
     this.selectedFriendId = null
+    delete this.element.dataset.activeFriendId
     this.chatViewTarget.style.display = "none"
     this.friendListTarget.style.display = "block"
     this._loadFriends()
@@ -59,6 +60,7 @@ export default class extends Controller {
     const friendId = event.currentTarget.dataset.friendId
     const friendName = event.currentTarget.dataset.friendName
     this.selectedFriendId = friendId
+    this.element.dataset.activeFriendId = friendId
 
     this.chatHeaderTarget.textContent = friendName
     this.friendListTarget.style.display = "none"
@@ -124,6 +126,7 @@ export default class extends Controller {
   _subscribe(signedStreamName) {
     this._unsubscribe()
     const target = this.messageListTarget
+    const controller = this
 
     this.subscription = this.consumer.subscriptions.create(
       { channel: "Turbo::StreamsChannel", signed_stream_name: signedStreamName },
@@ -138,6 +141,10 @@ export default class extends Controller {
             if (content) {
               target.appendChild(content.cloneNode(true))
               target.scrollTop = target.scrollHeight
+              // Auto-mark as read since user is viewing this conversation
+              if (controller.selectedFriendId) {
+                controller._markRead(controller.selectedFriendId)
+              }
             }
           }
         }
