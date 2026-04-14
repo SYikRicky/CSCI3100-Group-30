@@ -36,8 +36,8 @@ class TradeMailer < ApplicationMailer
 
   def confirmation(trade)
     @trade = trade
-    @user = trade.user
-    @league = trade.league
+    @user = trade.portfolio.user
+    @league = trade.portfolio.league
     # user model will track the balance
     @remaining_balance = @user.balance_in_league(@league)
     mail(to: @user.email, subject: "Trade Confirmed: #{@trade.stock.ticker}")
