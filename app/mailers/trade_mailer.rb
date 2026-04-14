@@ -40,9 +40,9 @@ class TradeMailer < ApplicationMailer
     @user = @portfolio.user
     @league = @portfolio.league
     # user model will track the balance
-    @remaining_balance = @portfolio.try(:cash) || 
-                        @portfolio.try(:balance) || 
-                        @portfolio.try(:current_balance) || 
+    @remaining_balance = @portfolio.try(:cash) ||
+                        @portfolio.try(:balance) ||
+                        @portfolio.try(:current_balance) ||
                         0.0
     mail(to: @user.email, subject: "Trade Confirmation - #{@league.name}")
   end
