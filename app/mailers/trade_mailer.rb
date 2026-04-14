@@ -33,4 +33,25 @@ class TradeMailer < ApplicationMailer
     # Don't change the subject
     mail to: @user.email, subject: "Daily Portfolio Summary - #{@league.name}"
   end
+
+  def confirmation(trade)
+    @trade = trade
+    @user = trade.user
+    @league = trade.league
+    # user model will track the balance
+    @remaining_balance = @user.balance_in_league(@league) 
+    mail(to: @user.email, subject: "Trade Confirmed: #{@trade.stock.ticker}")
+  end
+
+  def trade_confirmation(trade)
+    @trade = trade
+    @user = trade.user
+    @league = trade.league
+  
+    # the logic to calculate balance
+    @remaining_balance = @user.balance_for_league(@league) 
+
+    mail(to: @user.email, subject: "Trade Confirmation: #{@trade.stock.ticker}")
+  end
+
 end
