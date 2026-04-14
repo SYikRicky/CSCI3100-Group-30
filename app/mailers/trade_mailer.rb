@@ -40,7 +40,10 @@ class TradeMailer < ApplicationMailer
     @user = @portfolio.user
     @league = @portfolio.league
     # user model will track the balance
-    @remaining_balance = @user.balance_in_league(@league)
-    mail(to: @user.email, subject: "Trade Confirmed: #{@trade.stock.ticker}")
+    @remaining_balance = @portfolio.try(:cash) || 
+                        @portfolio.try(:balance) || 
+                        @portfolio.try(:current_balance) || 
+                        0.0
+    mail(to: @user.email, subject: "Trade Confirmation - #{@league.name}")
   end
 end
