@@ -13,5 +13,14 @@
 
 <p>League: <%= @league.name %></p>
 
+<p>
+  <strong>Total Transaction Value:</strong> 
+  <%= number_to_currency(@trade.quantity * @trade.price_at_trade) %>
+</p>
+
+<p>Your remaining balance in <strong><%= @league.name %></strong> is: 
+   <%= number_to_currency(@remaining_balance) %>
+</p>
+
 <hr>
 <p>Virtual Trading Only</p>
