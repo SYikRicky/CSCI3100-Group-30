@@ -62,7 +62,7 @@ group :development, :test do
   gem "rubocop-rails-omakase", require: false
   gem "rspec-rails", "~> 8.0"
   gem "factory_bot_rails", "~> 6.5"
-  gem "faker", "~> 3.6"
+  gem "faker", "~> 3.8"
   gem "webmock", "~> 3.26"
 end
 
@@ -86,6 +86,6 @@ gem "faraday", "~> 2.14"
 gem "simplecov", "~> 0.22.0", group: :test
 gem "database_cleaner-active_record", "~> 2.2", group: :test
 gem "shoulda-matchers", "~> 7.0", group: :test
-gem "cucumber", "~> 10.2", group: :test
+gem "cucumber", "~> 11.0", group: :test
 
 gem "cssbundling-rails", "~> 1.4"
